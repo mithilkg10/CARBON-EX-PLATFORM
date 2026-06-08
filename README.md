@@ -115,7 +115,7 @@ DATABASE_URL=your_database_url
 | Name | Role | GitHub |
 |------|------|--------|
 | Mithil K Gowda | Lead Developer | [@MithilKGowda](https://github.com/MithilKGowda) |
-| Teammate 2 | Developer | [@username](https://github.com/username) |
+| Pranathi M | Developer | [@pranathi34](https://github.com/pranathi34) |
 | Teammate 3 | Developer | [@username](https://github.com/username) |
 
 > 📝 *Update the table above with your teammates' actual GitHub usernames.*
