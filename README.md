@@ -81,7 +81,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](https://carbon-ex-platform.vercel.app/login) in your browser.
 
 ### Build for Production
 
