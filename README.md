@@ -106,7 +106,7 @@ DATABASE_URL=your_database_url
 # Add other required environment variables
 ```
 
-> ⚠️ **Never commit your `.env.local` file.** It is already in `.gitignore`.
+
 
 ---
 
@@ -117,28 +117,5 @@ DATABASE_URL=your_database_url
 | Mithil K Gowda | Lead Developer | [@MithilKGowda](https://github.com/MithilKGowda) |
 '
 
-> 📝 *Update the table above with your teammates' actual GitHub usernames.*
 
----
 
-## 📄 License
-
-This project is developed as a team academic/research project.
-
----
-
-## 🤝 Contributing
-
-1. Create a new branch: `git checkout -b feature/your-feature-name`
-2. Make your changes and commit: `git commit -m "feat: add your feature"`
-3. Push to your branch: `git push origin feature/your-feature-name`
-4. Open a Pull Request on GitHub
-
-### Commit Message Convention
-
-- `feat:` — New feature
-- `fix:` — Bug fix
-- `docs:` — Documentation update
-- `style:` — Formatting/style changes
-- `refactor:` — Code refactoring
-- `test:` — Adding tests
