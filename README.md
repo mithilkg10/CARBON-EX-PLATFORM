@@ -1,121 +1,114 @@
-# CarbonEx — AI-Governed Carbon Credit Trading Platform
+# CarbonEx
 
-> A full-stack, AI-driven carbon credit exchange platform built with Next.js, featuring real-time analytics, regulator dashboards, and cryptographic security.
+## AI Governed Carbon Credit Exchange Prototype
 
----
+CarbonEx is a full stack prototype for carbon credit trading, digital carbon passports, regulator visibility, audit workflows, pricing experiments, and security focused transaction handling.
 
-## 🌍 Overview
+The project is designed as an engineering and research demonstration. It should not be interpreted as a production financial exchange, a certified cryptographic product, or a regulatory compliance system.
 
-**CarbonEx** is a next-generation carbon credit trading platform that leverages Artificial Intelligence and Explainable AI (XAI) to govern, monitor, and optimize carbon credit exchanges. The system provides transparent, model-anchored KPI tracking through real-time dashboards for regulators, traders, and auditors.
+## Main capabilities
 
-### Key Features
+* Digital Carbon Passport workflows
+* Carbon credit marketplace views
+* Trading APIs
+* Regulator and company roles
+* Audit logging
+* Authentication with JWT based sessions
+* Pricing and analytics interfaces
+* Security layer experiments
+* Deployed web demonstration
 
-- 🤖 **AI-Governed Trading** — Real-time AI pricing engine with explainable decision logic
-- 📊 **Regulator Dashboard** — Live KPI monitoring with XAI transparency layers
-- 🔐 **STL-C³T Cryptographic Security** — Secure transaction ledger architecture
-- 📈 **STAVP Ledger** — Immutable audit trail for all trades
-- 👥 **Role-Based Access** — Admin, Regulator, Trader, and Auditor roles
-- 🔍 **AI Analytics** — Model accuracy tracking, drift detection, and performance metrics
+## Technology
 
----
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* Radix UI
+* Recharts
+* React Hook Form
+* Zod
+* jose
+* bcryptjs
+* SWR
 
-## 🛠️ Tech Stack
+## Project structure
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Frontend | React 19, TypeScript |
-| Styling | Tailwind CSS v4, Radix UI |
-| Charts | Recharts |
-| Animation | Framer Motion |
-| Forms | React Hook Form + Zod |
-| Auth | JWT (jose) + bcryptjs |
-| Data Fetching | SWR |
-
----
-
-## 📁 Project Structure
-
-```
-├── app/                    # Next.js App Router pages & API routes
-│   ├── (auth)/            # Authentication pages
-│   ├── api/               # Backend API endpoints
-│   └── ...
-├── components/            # Reusable React components
-│   ├── regulator/         # Regulator dashboard components
-│   ├── audit/             # Audit log components
-│   └── ...
-├── backend/               # Backend logic & database
-├── frontend/              # Additional frontend modules
-├── lib/                   # Shared utilities & helpers
-├── hooks/                 # Custom React hooks
-├── data/                  # Static/seed data
-├── public/                # Static assets
-└── styles/                # Global styles
+```text
+app/
+components/
+backend/
+frontend/
+hooks/
+lib/
+public/
+styles/
 ```
 
----
-
-## 🚀 Getting Started
+## Local development
 
 ### Prerequisites
 
-- Node.js >= 18.x
-- npm >= 9.x
+* Node.js 18 or later
+* npm 9 or later
 
-### Installation
+### Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/carbonex-platform.git
-cd carbonex-platform
-
-# Install dependencies
+git clone https://github.com/mithilkg10/CARBON-EX-PLATFORM.git
+cd CARBON-EX-PLATFORM
 npm install
+```
 
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your configuration
+### Environment
 
-# Start development server
+Create `.env.local` and provide a strong JWT secret.
+
+```env
+JWT_SECRET=replace_with_a_long_random_secret
+```
+
+Production deployments should fail closed when required secrets are unavailable.
+
+### Start
+
+```bash
 npm run dev
 ```
 
- To Open Project [click here](https://carbon-ex-platform.vercel.app/login) 
-
-### Build for Production
+### Build
 
 ```bash
 npm run build
 npm start
 ```
 
----
+## Security boundaries
 
-## 🔑 Environment Variables
+CarbonEx contains security and cryptographic experiments that are suitable for demonstration and further research.
 
-Create a `.env.local` file in the root directory:
+The repository should not describe prototype ledger structures as independently verified immutability, and custom cryptographic components should not be treated as substitutes for audited standard cryptographic libraries.
 
-```env
-# Authentication
-JWT_SECRET=your_jwt_secret_here
+A production implementation should use:
 
-# Database (if applicable)
-DATABASE_URL=your_database_url
+* Strong secret management
+* Persistent transactional storage
+* Strict input validation
+* Distributed rate limiting
+* Standard authenticated encryption
+* Standard digital signatures or message authentication
+* Atomic trade settlement
+* Independent security review
+* Automated tests for authorization and business rules
 
-# Add other required environment variables
-```
+## Data status
 
+The current project includes demonstration data and prototype storage paths. Demo users, demo credentials, synthetic records, and generated values should remain clearly separated from production concepts.
 
+## Live demonstration
 
----
+The repository homepage links to the deployed CarbonEx demonstration.
 
-## 👥 Team
+## Project status
 
-| Name | Role | GitHub |
-|------|------|--------|
-| Mithil K Gowda | Lead Developer | [@MithilKGowda](https://github.com/MithilKGowda) |
-'
-
-
-
+Active prototype and research project.

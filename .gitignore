@@ -22,6 +22,11 @@ out/
 dist/
 build/
 
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # TypeScript build cache
 tsconfig.tsbuildinfo
 *.tsbuildinfo
