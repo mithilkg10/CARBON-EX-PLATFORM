@@ -1,9 +1,13 @@
 import { SignJWT, jwtVerify } from 'jose'
 import type { UserRole } from '@/lib/db/types'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'carbonex-super-secret-key-change-in-production'
-)
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error('JWT_SECRET must be configured with at least 32 characters')
+  }
+  return new TextEncoder().encode(secret)
+}
 
 export interface JWTPayload {
   userId: string
@@ -18,12 +22,13 @@ export async function signToken(payload: JWTPayload): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h')
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
+  const secret = getJwtSecret()
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, secret)
     return payload as unknown as JWTPayload
   } catch {
     return null
