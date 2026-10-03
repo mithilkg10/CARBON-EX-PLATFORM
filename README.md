@@ -1,5 +1,7 @@
 # CarbonEx
 
+[Portfolio case study](https://mithilkg-portfolio.vercel.app/projects/carbon-credit-exchange)
+
 ## AI Governed Carbon Credit Exchange Prototype
 
 CarbonEx is a full stack prototype for carbon credit trading, digital carbon passports, regulator visibility, audit workflows, pricing experiments, and security focused transaction handling.
