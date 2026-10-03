@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (session.role !== 'company') {
+    if (session.isDemo || session.role !== 'company') {
       return NextResponse.json(
         { error: 'Only companies can create carbon passports' },
         { status: 403 }

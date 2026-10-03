@@ -57,6 +57,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (session.isDemo || session.role !== 'company') {
+      return NextResponse.json({ error: 'Trading is unavailable to demo and non-company accounts' }, { status: 403 })
+    }
+
     const { creditId, quantity, action } = await request.json()
 
     if (!creditId || !quantity || !action) {

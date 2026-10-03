@@ -20,7 +20,7 @@ export async function getSession(): Promise<JWTPayload | null> {
     return null
   }
   
-  return payload
+  return { ...payload, role: user.role, isDemo: user.is_demo === true }
 }
 
 export async function setSessionCookie(token: string) {

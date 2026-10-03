@@ -15,6 +15,7 @@ export interface JWTPayload {
   role: UserRole
   name: string
   companyName?: string
+  isDemo?: boolean
 }
 
 export async function signToken(payload: JWTPayload): Promise<string> {

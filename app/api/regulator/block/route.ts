@@ -5,8 +5,11 @@ import { db } from '@/lib/db'
 export async function POST(req: Request) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'regulator') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (session.isDemo || (session.role !== 'regulator' && session.role !== 'admin')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await req.json()

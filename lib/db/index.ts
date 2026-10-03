@@ -33,32 +33,47 @@ class Database {
   async initialize() {
     if (this.initialized) return
 
-    // Seed default users
-    const adminHash = await bcrypt.hash('admin123', 10)
-    const companyHash = await bcrypt.hash('company123', 10)
-    const regulatorHash = await bcrypt.hash('regulator123', 10)
+    // Only explicitly configured accounts can sign in. Sample organizations are synthetic data.
+    const adminEmail = process.env.ADMIN_EMAIL
+    const adminHash = process.env.ADMIN_PASSWORD_HASH
+    const demoPassword = process.env.DEMO_PASSWORD
+    if (Boolean(adminEmail) !== Boolean(adminHash)) {
+      throw new Error('Set both ADMIN_EMAIL and ADMIN_PASSWORD_HASH')
+    }
+    if (adminHash && !/^\$2[aby]\$\d\d\$/.test(adminHash)) {
+      throw new Error('ADMIN_PASSWORD_HASH must be a bcrypt hash')
+    }
+    if (demoPassword && demoPassword.length < 12) {
+      throw new Error('DEMO_PASSWORD must be at least 12 characters')
+    }
+    if (adminHash && demoPassword && await bcrypt.compare(demoPassword, adminHash)) {
+      throw new Error('Owner and demo passwords must differ')
+    }
+    const demoHash = demoPassword ? await bcrypt.hash(demoPassword, 10) : undefined
 
     const now = new Date().toISOString()
 
     // Admin user
-    const admin: User = {
+    const admin: User | undefined = adminEmail && adminHash ? {
       id: 'usr_admin_001',
-      email: 'admin@carbonex.com',
+      email: adminEmail,
       password_hash: adminHash,
       name: 'Platform Admin',
-      role: 'regulator', // uses regulator role so they can access the dashboard
+      role: 'admin',
       created_at: now,
       updated_at: now,
-    }
+    } : undefined
 
     // Company users
     const acme: User = {
       id: 'usr_acme_001',
-      email: 'acme@company.com',
-      password_hash: companyHash,
+      email: demoHash ? 'demo.company@mithilkg.dev' : 'acme@company.invalid',
+      password_hash: demoHash || 'disabled',
       name: 'ACME Corporation',
       role: 'company',
       company_name: 'ACME Corp',
+      is_demo: Boolean(demoHash),
+      is_blocked: !demoHash,
       created_at: now,
       updated_at: now,
     }
@@ -66,10 +81,11 @@ class Database {
     const greentech: User = {
       id: 'usr_greentech_001',
       email: 'greentech@company.com',
-      password_hash: companyHash,
+      password_hash: 'disabled',
       name: 'GreenTech Industries',
       role: 'company',
       company_name: 'GreenTech Industries',
+      is_blocked: true,
       created_at: now,
       updated_at: now,
     }
@@ -77,10 +93,11 @@ class Database {
     const ecofirst: User = {
       id: 'usr_ecofirst_001',
       email: 'ecofirst@company.com',
-      password_hash: companyHash,
+      password_hash: 'disabled',
       name: 'EcoFirst Solutions',
       role: 'company',
       company_name: 'EcoFirst Solutions',
+      is_blocked: true,
       created_at: now,
       updated_at: now,
     }
@@ -88,15 +105,17 @@ class Database {
     // Regulator user
     const regulator: User = {
       id: 'usr_reg_001',
-      email: 'reg@gov.com',
-      password_hash: regulatorHash,
+      email: demoHash ? 'demo.regulator@mithilkg.dev' : 'regulator@demo.invalid',
+      password_hash: demoHash || 'disabled',
       name: 'EPA Regulator',
       role: 'regulator',
+      is_demo: Boolean(demoHash),
+      is_blocked: !demoHash,
       created_at: now,
       updated_at: now,
     }
 
-    this.users.set(admin.id, admin)
+    if (admin) this.users.set(admin.id, admin)
     this.users.set(acme.id, acme)
     this.users.set(greentech.id, greentech)
     this.users.set(ecofirst.id, ecofirst)

@@ -13,11 +13,8 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [name, setName] = useState("")
-  const [companyName, setCompanyName] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState<'login' | 'register' | 'setup_password'>('login')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,72 +22,27 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      if (mode === 'login') {
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        })
-        const data = await res.json()
-
-        if (!res.ok) {
-          if (data.error?.includes('requires_password_setup') || data.error?.includes('password not set')) {
-            setMode('setup_password')
-            setError("Your registration was approved! Please set your new password.")
-            setLoading(false)
-            return
-          }
-          setError(data.error || "Login failed")
-          setLoading(false)
-          return
-        }
-
-        if (data.user.role === "regulator" || data.user.role === "admin") {
-          router.push("/regulator")
-        } else {
-          router.push("/dashboard")
-        }
-      } else if (mode === 'register') {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: 'register', email, name, company_name: companyName }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || "Registration failed")
-        } else {
-          setError(data.message)
-          setMode('login')
-          setPassword("")
-        }
-        setLoading(false)
-      } else if (mode === 'setup_password') {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: 'set_password', email, password }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || "Setup failed")
-        } else {
-          setError("Password set successfully! Please login.")
-          setMode('login')
-          setPassword("")
-        }
-        setLoading(false)
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "Login failed")
+        return
       }
+      router.push(data.user.role === "company" ? "/dashboard" : "/regulator")
     } catch {
       setError("An unexpected error occurred")
+    } finally {
       setLoading(false)
     }
   }
 
-  const demoCredentials = [
-    { role: "Company (ACME Corp)", email: "acme@company.com", password: "company123" },
-    { role: "Regulator (EPA)", email: "reg@gov.com", password: "regulator123" },
-    { role: "Admin", email: "admin@carbonex.com", password: "admin123" },
+  const demoAccounts = [
+    { role: "Company demo", email: "demo.company@mithilkg.dev" },
+    { role: "Regulator demo", email: "demo.regulator@mithilkg.dev" },
   ]
 
   return (
@@ -117,12 +69,8 @@ export default function LoginPage() {
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Register Account' : 'Setup Password'}
-            </CardTitle>
-            <CardDescription>
-              {mode === 'login' ? 'Sign in to access the Carbon Credit Exchange' : mode === 'register' ? 'Apply for platform access' : 'Set your permanent password'}
-            </CardDescription>
+            <CardTitle className="text-2xl">Welcome back</CardTitle>
+            <CardDescription>Sign in to the CarbonEx research prototype</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,50 +95,12 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {mode === 'register' && (
-                <>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="Full Name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        type="text"
-                        placeholder="Company Name"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {mode !== 'register' && (
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="password"
-                      placeholder={mode === 'setup_password' ? "New Password" : "Password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10" required />
                 </div>
-              )}
+              </div>
 
               <Button 
                 type="submit" 
@@ -204,47 +114,32 @@ export default function LoginPage() {
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Submit Registration' : 'Set Password'}
+                    Sign in
                     <ArrowRight className="h-4 w-4" />
                   </span>
                 )}
               </Button>
             </form>
 
-            {mode === 'login' && (
-              <div className="mt-4 text-center">
-                <Button variant="link" onClick={() => setMode('register')} className="text-sm">
-                  Don't have an account? Apply for Registration
-                </Button>
-              </div>
-            )}
-            
-            {mode === 'register' && (
-              <div className="mt-4 text-center">
-                <Button variant="link" onClick={() => setMode('login')} className="text-sm">
-                  Already have an account? Sign in
-                </Button>
-              </div>
-            )}
-
-            {/* Demo credentials */}
+            {/* Demo accounts have view-only access to synthetic records. */}
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-sm text-muted-foreground text-center mb-3">
-                Demo Credentials
+                Recruiter Demo · view-only synthetic data
               </p>
+              <p className="text-xs text-muted-foreground text-center mb-3">Select a role, then enter the demo password provided by Mithil.</p>
               <div className="space-y-2">
-                {demoCredentials.map((cred) => (
+                {demoAccounts.map((account) => (
                   <button
-                    key={cred.role}
+                    key={account.role}
                     type="button"
                     onClick={() => {
-                      setEmail(cred.email)
-                      setPassword(cred.password)
+                      setEmail(account.email)
+                      setPassword("")
                     }}
                     className="w-full p-2 rounded-md bg-secondary/50 hover:bg-secondary text-sm text-left transition-colors"
                   >
-                    <span className="font-medium text-foreground">{cred.role}:</span>{" "}
-                    <span className="text-muted-foreground font-mono text-xs">{cred.email}</span>
+                    <span className="font-medium text-foreground">{account.role}:</span>{" "}
+                    <span className="text-muted-foreground font-mono text-xs">{account.email}</span>
                   </button>
                 ))}
               </div>

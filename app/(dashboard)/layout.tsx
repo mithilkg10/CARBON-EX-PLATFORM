@@ -17,6 +17,7 @@ export default async function DashboardLayout({
     <div className="flex h-screen bg-background">
       <Sidebar userRole={session.role} userName={session.name} />
       <main className="flex-1 overflow-auto">
+        {session.isDemo && <p className="border-b border-border bg-secondary px-4 py-2 text-sm">Recruiter demo · synthetic data · view-only access</p>}
         {children}
       </main>
     </div>

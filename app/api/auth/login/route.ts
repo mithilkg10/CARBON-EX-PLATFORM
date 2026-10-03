@@ -36,9 +36,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log("[v0] Login attempt for email:", email)
     const user = await db.getUserByEmail(email)
-    console.log("[v0] User found:", user ? { id: user.id, email: user.email, role: user.role } : null)
 
     if (!user) {
       // Track failed attempt
@@ -51,16 +49,14 @@ export async function POST(request: Request) {
       )
     }
 
-    if (user.requires_password_setup) {
+    if (user.is_blocked || user.requires_password_setup) {
       return NextResponse.json(
-        { error: 'requires_password_setup' },
+        { error: 'Account unavailable' },
         { status: 403 }
       )
     }
 
-    console.log("[v0] Comparing password with hash:", { passwordLength: password.length, hashLength: user.password_hash?.length })
     const passwordValid = await bcrypt.compare(password, user.password_hash)
-    console.log("[v0] Password valid:", passwordValid)
 
     if (!passwordValid) {
       // Track failed attempt
@@ -83,6 +79,7 @@ export async function POST(request: Request) {
       role: user.role,
       name: user.name,
       companyName: user.company_name,
+      isDemo: user.is_demo === true,
     })
 
     // Set session cookie

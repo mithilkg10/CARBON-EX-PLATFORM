@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (session.role !== 'regulator' && session.role !== 'admin') {
+    if (session.isDemo || (session.role !== 'regulator' && session.role !== 'admin')) {
       return NextResponse.json(
         { error: 'Access denied. Admin or regulator role required.' },
         { status: 403 }

@@ -83,13 +83,22 @@ npm install
 
 ### Environment
 
-Create `.env.local` and provide a strong JWT secret.
+Copy `.env.example` to `.env.local` locally, or set the same names in deployment secrets. Leave values out of source control.
 
 ```env
-JWT_SECRET=replace_with_a_long_random_secret
+JWT_SECRET=
+ADMIN_EMAIL=
+ADMIN_PASSWORD_HASH=
+DEMO_PASSWORD=
 ```
 
-Production deployments should fail closed when required secrets are unavailable.
+`JWT_SECRET` must be a unique random string of at least 32 characters. `ADMIN_PASSWORD_HASH` is a bcrypt hash of your private owner password; configure it together with `ADMIN_EMAIL`. `DEMO_PASSWORD` is a separate password of at least 12 characters. When set, it provisions `demo.company@mithilkg.dev` and `demo.regulator@mithilkg.dev` over synthetic in-memory data. Both demo roles can view but cannot trade, change records, approve registrations, block users, or read private audit logs. Share the demo password separately with recruiters.
+
+When using `.env.local`, escape each `$` in the bcrypt hash as `\$` so Next.js environment expansion preserves it. Deployment secret dashboards accept the unescaped hash.
+
+Owner login: `/login` with the configured `ADMIN_EMAIL` and its original private password (the value represented by `ADMIN_PASSWORD_HASH`). Demo login: `/login` with either demo email and `DEMO_PASSWORD`. The page offers email selection and never displays a privileged password.
+
+Self-service registration and password setup are disabled because this prototype has no verified invitation or email-ownership flow. Storage is in-memory and resets across processes; a successful local login does not prove a deployed serverless session works across instances.
 
 ### Start
 
@@ -106,7 +115,7 @@ npm start
 
 ## Validation
 
-Run `npm run lint` and `npm run build` locally. The repository does not currently document automated authorization or fraud-model performance tests, so no such results are claimed here.
+Run `npx tsc --noEmit` and `npm run build` locally. Authentication and authorization require separate HTTP checks with configured environment secrets. The repository does not claim fraud-model performance results.
 
 ## Security boundaries
 

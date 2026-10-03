@@ -10,6 +10,7 @@ export interface User {
   role: UserRole
   company_name?: string
   is_blocked?: boolean
+  is_demo?: boolean
   requires_password_setup?: boolean
   created_at: string
   updated_at: string
