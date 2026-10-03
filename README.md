@@ -2,11 +2,30 @@
 
 [Portfolio case study](https://mithilkg-portfolio.vercel.app/projects/carbon-credit-exchange)
 
-## AI Governed Carbon Credit Exchange Prototype
+## Secure AI-Governed Carbon Credit Exchange Prototype
 
 CarbonEx is a full stack prototype for carbon credit trading, digital carbon passports, regulator visibility, audit workflows, pricing experiments, and security focused transaction handling.
 
 The project is designed as an engineering and research demonstration. It should not be interpreted as a production financial exchange, a certified cryptographic product, or a regulatory compliance system.
+
+## Problem and architecture
+
+Carbon credit workflows need traceable passport records, distinct company and regulator access, and reviewable transaction history. CarbonEx combines these paths in a Next.js prototype:
+
+```text
+Company / regulator users → authenticated application
+                           → passport and trading APIs
+                           → audit and analytics views
+```
+
+The repository includes demonstration data and prototype storage paths; it does not establish production-grade settlement or regulatory compliance.
+
+## Security capabilities
+
+* JWT-based sessions and company/regulator role views
+* Trading and passport API workflows
+* Audit logging and regulator visibility
+* Transaction security experiments with documented boundaries
 
 ## Main capabilities
 
@@ -85,6 +104,10 @@ npm run build
 npm start
 ```
 
+## Validation
+
+Run `npm run lint` and `npm run build` locally. The repository does not currently document automated authorization or fraud-model performance tests, so no such results are claimed here.
+
 ## Security boundaries
 
 CarbonEx contains security and cryptographic experiments that are suitable for demonstration and further research.
@@ -109,8 +132,10 @@ The current project includes demonstration data and prototype storage paths. Dem
 
 ## Live demonstration
 
-The repository homepage links to the deployed CarbonEx demonstration.
+[Open the deployed CarbonEx demonstration](https://carbon-ex-platform.vercel.app). No product screenshots are committed to this repository.
 
 ## Project status
 
-Active prototype and research project.
+Active prototype and research project. Future work includes persistent transactional storage, authorization tests, standard cryptographic primitives, and independent security review.
+
+[Portfolio](https://mithilkg-portfolio.vercel.app) · [LinkedIn](https://www.linkedin.com/in/mithil-k-gowda) · [GitHub profile](https://github.com/mithilkg10)
