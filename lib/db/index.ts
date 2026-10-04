@@ -67,13 +67,13 @@ class Database {
     // Company users
     const acme: User = {
       id: 'usr_acme_001',
-      email: demoHash ? 'demo.company@mithilkg.dev' : 'acme@company.invalid',
-      password_hash: demoHash || 'disabled',
+      email: 'demo.company@mithilkg.dev',
+      password_hash: 'one-click-demo-only',
       name: 'ACME Corporation',
       role: 'company',
       company_name: 'ACME Corp',
-      is_demo: Boolean(demoHash),
-      is_blocked: !demoHash,
+      is_demo: true,
+      is_blocked: false,
       created_at: now,
       updated_at: now,
     }
@@ -105,12 +105,12 @@ class Database {
     // Regulator user
     const regulator: User = {
       id: 'usr_reg_001',
-      email: demoHash ? 'demo.regulator@mithilkg.dev' : 'regulator@demo.invalid',
-      password_hash: demoHash || 'disabled',
-      name: 'EPA Regulator',
+      email: 'demo.regulator@mithilkg.dev',
+      password_hash: 'one-click-demo-only',
+      name: 'Regulatory Review',
       role: 'regulator',
-      is_demo: Boolean(demoHash),
-      is_blocked: !demoHash,
+      is_demo: true,
+      is_blocked: false,
       created_at: now,
       updated_at: now,
     }
