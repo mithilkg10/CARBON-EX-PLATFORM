@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { Leaf, Lock, Mail, AlertCircle, ArrowRight } from "lucide-react"
+import { AlertCircle, ArrowLeft, ArrowRight, Leaf, Lock, Mail, Scale, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,7 +20,6 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setLoading(true)
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -40,117 +39,44 @@ export default function LoginPage() {
     }
   }
 
-  const demoAccounts = [
-    { role: "Company demo", email: "demo.company@mithilkg.dev" },
-    { role: "Regulator demo", email: "demo.regulator@mithilkg.dev" },
-  ]
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      {/* Background gradient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/20 rounded-full blur-3xl" />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md relative z-10"
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Leaf className="w-6 h-6 text-primary" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">CarbonEx</span>
-        </div>
-
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to the CarbonEx research prototype</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="space-y-2">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10" required />
-                </div>
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full bg-primary hover:bg-primary/90"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Processing...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    Sign in
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                )}
-              </Button>
-            </form>
-
-            {/* Demo accounts have view-only access to synthetic records. */}
-            <div className="mt-6 pt-6 border-t border-border">
-              <p className="text-sm text-muted-foreground text-center mb-3">
-                Recruiter Demo · view-only synthetic data
-              </p>
-              <p className="text-xs text-muted-foreground text-center mb-3">Select a role, then enter the demo password provided by Mithil.</p>
-              <div className="space-y-2">
-                {demoAccounts.map((account) => (
-                  <button
-                    key={account.role}
-                    type="button"
-                    onClick={() => {
-                      setEmail(account.email)
-                      setPassword("")
-                    }}
-                    className="w-full p-2 rounded-md bg-secondary/50 hover:bg-secondary text-sm text-left transition-colors"
-                  >
-                    <span className="font-medium text-foreground">{account.role}:</span>{" "}
-                    <span className="text-muted-foreground font-mono text-xs">{account.email}</span>
-                  </button>
-                ))}
-              </div>
+    <main className="min-h-screen bg-background p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl items-center justify-center">
+        <div className="grid w-full gap-8 lg:grid-cols-[.9fr_1.1fr]">
+          <section className="hidden rounded-2xl border border-border bg-card p-8 lg:block">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to overview</Link>
+            <div className="mt-14 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10"><Leaf className="h-6 w-6 text-primary" /></span><span className="text-2xl font-semibold">CarbonEx</span></div>
+            <h1 className="mt-8 text-3xl font-semibold tracking-tight">Private operator access</h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in only if you have a configured CarbonEx operator account. Recruiters do not need credentials.</p>
+            <div className="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="h-4 w-4 text-primary" />Recruiter access is isolated</div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Demo identities use synthetic records and state-changing API operations remain blocked.</p>
             </div>
-          </CardContent>
-        </Card>
+          </section>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Secure, AI-powered carbon credit trading platform
-        </p>
-      </motion.div>
-    </div>
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle className="text-2xl">Sign in</CardTitle>
+              <CardDescription>CarbonEx operator workspace</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+                <div className="relative"><Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" required /></div>
+                <div className="relative"><Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10" required /></div>
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Signing in..." : <span className="flex items-center gap-2">Sign in <ArrowRight className="h-4 w-4" /></span>}</Button>
+              </form>
+
+              <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[.14em] text-muted-foreground"><span className="h-px flex-1 bg-border" />Recruiter demo<span className="h-px flex-1 bg-border" /></div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <form action="/demo-login" method="post"><input type="hidden" name="role" value="company" /><Button type="submit" variant="outline" className="w-full"><Leaf className="h-4 w-4" />Company view</Button></form>
+                <form action="/demo-login" method="post"><input type="hidden" name="role" value="regulator" /><Button type="submit" variant="outline" className="w-full"><Scale className="h-4 w-4" />Regulator view</Button></form>
+              </div>
+              <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">No demo username or password required. Synthetic, recruiter-safe data only.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </main>
   )
 }
