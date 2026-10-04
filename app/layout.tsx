@@ -16,9 +16,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CarbonEx - AI-Governed Carbon Credit Exchange',
-  description: 'A secure, transparent platform for trading carbon credits with AI-powered pricing and blockchain-verified transactions.',
-  generator: 'v0.app',
+  title: 'CarbonEx | Secure Carbon Credit Exchange Prototype',
+  description: 'Research prototype for carbon-credit trading with Digital Carbon Passports, role-based workflows, protected transactions and tamper-evident audit records.',
   icons: {
     icon: [
       {
