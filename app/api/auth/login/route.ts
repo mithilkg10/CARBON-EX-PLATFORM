@@ -49,6 +49,13 @@ export async function POST(request: Request) {
       )
     }
 
+    if (user.is_demo) {
+      return NextResponse.json(
+        { error: 'Recruiter demo accounts use the one-click demo buttons.' },
+        { status: 403 }
+      )
+    }
+
     if (user.is_blocked || user.requires_password_setup) {
       return NextResponse.json(
         { error: 'Account unavailable' },
