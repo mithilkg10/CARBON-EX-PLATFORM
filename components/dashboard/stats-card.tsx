@@ -30,9 +30,9 @@ export function StatsCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "p-6 rounded-xl border border-border bg-card",
+        "rounded-2xl border border-white/[0.07] bg-gradient-to-br from-white/[0.05] via-white/[0.025] to-emerald-400/[0.02] p-6 shadow-[0_16px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl",
         className
       )}
     >
@@ -54,7 +54,7 @@ export function StatsCard({
             </div>
           )}
         </div>
-        <div className={cn("p-3 rounded-lg bg-secondary/50", iconColor)}>
+        <div className={cn("rounded-xl border border-white/[0.06] bg-white/[0.04] p-3 shadow-inner", iconColor)}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
