@@ -1,3 +1,4 @@
+import { Leaf } from "lucide-react"
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/auth/session"
 import { Sidebar } from "@/components/dashboard/sidebar"
@@ -15,11 +16,19 @@ export default async function DashboardLayout({
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-[#050807]">
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-32 h-[34rem] w-[34rem] rounded-full bg-emerald-500/[0.08] blur-[110px]" />
-        <div className="absolute right-[8%] top-[12%] h-[28rem] w-[28rem] rounded-full bg-cyan-400/[0.06] blur-[120px]" />
-        <div className="absolute bottom-[-12rem] left-[30%] h-[30rem] w-[30rem] rounded-full bg-lime-400/[0.05] blur-[130px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:52px_52px]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-44 -top-36 h-[36rem] w-[36rem] rounded-full bg-emerald-500/[0.10] blur-[125px]" />
+        <div className="absolute right-[-8rem] top-[8%] h-[32rem] w-[32rem] rounded-full bg-cyan-400/[0.07] blur-[130px]" />
+        <div className="absolute bottom-[-15rem] left-[28%] h-[34rem] w-[34rem] rounded-full bg-lime-400/[0.06] blur-[140px]" />
+
+        <div className="carbon-ribbon carbon-ribbon-a" />
+        <div className="carbon-ribbon carbon-ribbon-b" />
+        <div className="carbon-orbit carbon-orbit-a" />
+        <div className="carbon-orbit carbon-orbit-b" />
+
+        <Leaf className="carbon-app-leaf left-[18%] top-[14%] h-9 w-9 rotate-[-24deg]" />
+        <Leaf className="carbon-app-leaf right-[12%] top-[26%] h-7 w-7 rotate-[18deg]" />
+        <Leaf className="carbon-app-leaf bottom-[18%] left-[38%] h-6 w-6 rotate-[35deg]" />
       </div>
 
       <div className="relative z-10 flex h-full w-full">
