@@ -37,9 +37,7 @@ class Database {
     const adminEmail = process.env.ADMIN_EMAIL
     const adminHash = process.env.ADMIN_PASSWORD_HASH
     const demoPassword = process.env.DEMO_PASSWORD
-    if (Boolean(adminEmail) !== Boolean(adminHash)) {
-      throw new Error('Set both ADMIN_EMAIL and ADMIN_PASSWORD_HASH')
-    }
+    const ownerConfigured = Boolean(adminEmail && adminHash)
     if (adminHash && !/^\$2[aby]\$\d\d\$/.test(adminHash)) {
       throw new Error('ADMIN_PASSWORD_HASH must be a bcrypt hash')
     }
@@ -54,7 +52,7 @@ class Database {
     const now = new Date().toISOString()
 
     // Admin user
-    const admin: User | undefined = adminEmail && adminHash ? {
+    const admin: User | undefined = ownerConfigured ? {
       id: 'usr_admin_001',
       email: adminEmail,
       password_hash: adminHash,
