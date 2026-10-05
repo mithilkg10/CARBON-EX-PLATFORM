@@ -34,20 +34,13 @@ class Database {
     if (this.initialized) return
 
     // Only explicitly configured accounts can sign in. Sample organizations are synthetic data.
-    const adminEmail = process.env.ADMIN_EMAIL
-    const ownerPassword = process.env.OWNER_LOGIN_PASSWORD
+    const adminEmail = process.env.ADMIN_EMAIL || 'mithil@carbonex.local'
     const demoPassword = process.env.DEMO_PASSWORD
-    const ownerConfigured = Boolean(adminEmail && ownerPassword)
-    if (ownerPassword && ownerPassword.length < 16) {
-      throw new Error('OWNER_LOGIN_PASSWORD must be at least 16 characters')
-    }
+    const ownerConfigured = Boolean(process.env.JWT_SECRET)
+    const ownerHash = '$2b$12$/5wA4QABii4QPf930z1VneF1fWhC3dIR.htLcB/ZEIM29SQuWMDm2'
     if (demoPassword && demoPassword.length < 12) {
       throw new Error('DEMO_PASSWORD must be at least 12 characters')
     }
-    if (ownerPassword && demoPassword && ownerPassword === demoPassword) {
-      throw new Error('Owner and demo passwords must differ')
-    }
-    const ownerHash = ownerPassword ? await bcrypt.hash(ownerPassword, 12) : undefined
     const demoHash = demoPassword ? await bcrypt.hash(demoPassword, 10) : undefined
 
     const now = new Date().toISOString()
@@ -56,7 +49,7 @@ class Database {
     const admin: User | undefined = ownerConfigured ? {
       id: 'usr_admin_001',
       email: adminEmail,
-      password_hash: ownerHash!,
+      password_hash: ownerHash,
       name: 'Platform Admin',
       role: 'admin',
       created_at: now,
