@@ -3,8 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* AI-Governed Carbon Credit Exchange - Dark Theme */
-/* Inspired by Vercel's fintech aesthetic with emerald/green sustainability accents */
+/* CarbonEx visual system: dark transactional UI with restrained emerald accents. */
 
 :root {
   /* Light mode - clean and professional */
@@ -175,4 +174,33 @@
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+}
+
+
+@keyframes carbon-leaf-drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(var(--leaf-rotate, 0deg));
+    opacity: 0.32;
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) rotate(calc(var(--leaf-rotate, 0deg) + 4deg));
+    opacity: 0.55;
+  }
+}
+
+.carbon-leaf-float {
+  animation: carbon-leaf-drift 8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.carbon-leaf-float.delay-300 { animation-delay: .3s; }
+.carbon-leaf-float.delay-500 { animation-delay: .5s; }
+.carbon-leaf-float.delay-700 { animation-delay: .7s; }
+.carbon-leaf-float.delay-1000 { animation-delay: 1s; }
+.carbon-leaf-float.delay-1200 { animation-delay: 1.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .carbon-leaf-float {
+    animation: none;
+  }
 }
