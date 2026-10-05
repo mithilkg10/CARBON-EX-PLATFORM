@@ -204,3 +204,128 @@
     animation: none;
   }
 }
+
+
+/* Organic CarbonEx background language */
+.carbon-ribbon {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(0.2px);
+  opacity: 0.55;
+  border: 1px solid rgba(110, 231, 183, 0.10);
+  background:
+    linear-gradient(
+      100deg,
+      rgba(16, 185, 129, 0.00) 4%,
+      rgba(16, 185, 129, 0.08) 34%,
+      rgba(34, 211, 238, 0.05) 62%,
+      rgba(16, 185, 129, 0.00) 96%
+    );
+  box-shadow:
+    inset 0 0 60px rgba(52, 211, 153, 0.02),
+    0 0 90px rgba(16, 185, 129, 0.03);
+  animation: carbon-ribbon-drift 18s ease-in-out infinite alternate;
+}
+
+.carbon-ribbon-a {
+  width: 78rem;
+  height: 11rem;
+  left: -18rem;
+  top: 22%;
+  transform: rotate(-10deg);
+}
+
+.carbon-ribbon-b {
+  width: 64rem;
+  height: 9rem;
+  right: -16rem;
+  bottom: 12%;
+  transform: rotate(12deg);
+  animation-delay: -7s;
+}
+
+.carbon-ribbon-login-a {
+  width: 72rem;
+  height: 10rem;
+  left: -20rem;
+  top: 16%;
+  transform: rotate(-13deg);
+}
+
+.carbon-ribbon-login-b {
+  width: 66rem;
+  height: 8rem;
+  right: -18rem;
+  bottom: 11%;
+  transform: rotate(14deg);
+  animation-delay: -6s;
+}
+
+.carbon-orbit {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 232, 249, 0.08);
+  box-shadow:
+    inset 0 0 70px rgba(34, 211, 238, 0.015),
+    0 0 80px rgba(34, 211, 238, 0.02);
+  animation: carbon-orbit-float 22s ease-in-out infinite alternate;
+}
+
+.carbon-orbit-a {
+  width: 42rem;
+  height: 42rem;
+  right: -15rem;
+  top: -7rem;
+  transform: rotate(18deg);
+}
+
+.carbon-orbit-b {
+  width: 31rem;
+  height: 31rem;
+  left: 12%;
+  bottom: -18rem;
+  border-color: rgba(190, 242, 100, 0.06);
+  animation-delay: -9s;
+}
+
+.carbon-orbit-login {
+  width: 44rem;
+  height: 44rem;
+  right: -18rem;
+  top: -11rem;
+}
+
+.carbon-app-leaf {
+  position: absolute;
+  color: rgba(110, 231, 183, 0.10);
+  filter: drop-shadow(0 0 18px rgba(52, 211, 153, 0.08));
+  animation: carbon-leaf-drift 10s ease-in-out infinite;
+}
+
+@keyframes carbon-ribbon-drift {
+  0% {
+    translate: 0 0;
+    opacity: 0.40;
+  }
+  100% {
+    translate: 0 -18px;
+    opacity: 0.62;
+  }
+}
+
+@keyframes carbon-orbit-float {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(10deg);
+  }
+  100% {
+    transform: translate3d(-18px, 14px, 0) rotate(14deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carbon-ribbon,
+  .carbon-orbit,
+  .carbon-app-leaf {
+    animation: none;
+  }
+}
