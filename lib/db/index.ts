@@ -35,18 +35,19 @@ class Database {
 
     // Only explicitly configured accounts can sign in. Sample organizations are synthetic data.
     const adminEmail = process.env.ADMIN_EMAIL
-    const adminHash = process.env.ADMIN_PASSWORD_HASH
+    const ownerPassword = process.env.OWNER_LOGIN_PASSWORD
     const demoPassword = process.env.DEMO_PASSWORD
-    const ownerConfigured = Boolean(adminEmail && adminHash)
-    if (adminHash && !/^\$2[aby]\$\d\d\$/.test(adminHash)) {
-      throw new Error('ADMIN_PASSWORD_HASH must be a bcrypt hash')
+    const ownerConfigured = Boolean(adminEmail && ownerPassword)
+    if (ownerPassword && ownerPassword.length < 16) {
+      throw new Error('OWNER_LOGIN_PASSWORD must be at least 16 characters')
     }
     if (demoPassword && demoPassword.length < 12) {
       throw new Error('DEMO_PASSWORD must be at least 12 characters')
     }
-    if (adminHash && demoPassword && await bcrypt.compare(demoPassword, adminHash)) {
+    if (ownerPassword && demoPassword && ownerPassword === demoPassword) {
       throw new Error('Owner and demo passwords must differ')
     }
+    const ownerHash = ownerPassword ? await bcrypt.hash(ownerPassword, 12) : undefined
     const demoHash = demoPassword ? await bcrypt.hash(demoPassword, 10) : undefined
 
     const now = new Date().toISOString()
@@ -55,7 +56,7 @@ class Database {
     const admin: User | undefined = ownerConfigured ? {
       id: 'usr_admin_001',
       email: adminEmail,
-      password_hash: adminHash,
+      password_hash: ownerHash!,
       name: 'Platform Admin',
       role: 'admin',
       created_at: now,
