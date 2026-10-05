@@ -2,12 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, ArrowLeft, ArrowRight, Leaf, Lock, Mail, Scale, ShieldCheck } from "lucide-react"
+import { AlertCircle, ArrowRight, Leaf, Lock, Mail, Scale, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -44,7 +43,6 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl items-center justify-center">
         <div className="grid w-full gap-8 lg:grid-cols-[.9fr_1.1fr]">
           <section className="hidden rounded-2xl border border-border bg-card p-8 lg:block">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to overview</Link>
             <div className="mt-14 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10"><Leaf className="h-6 w-6 text-primary" /></span><span className="text-2xl font-semibold">CarbonEx</span></div>
             <h1 className="mt-8 text-3xl font-semibold tracking-tight">Private operator access</h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in only if you have a configured CarbonEx operator account. Recruiters do not need credentials.</p>
