@@ -56,7 +56,9 @@ export default function LoginPage() {
         <div className="absolute left-1/2 top-1/2 h-[48rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/[0.08] blur-[120px]" />
         <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-lime-400/[0.08] blur-[90px]" />
         <div className="absolute -right-24 bottom-16 h-80 w-80 rounded-full bg-emerald-400/[0.08] blur-[100px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        <div className="carbon-ribbon carbon-ribbon-login-a" />
+        <div className="carbon-ribbon carbon-ribbon-login-b" />
+        <div className="carbon-orbit carbon-orbit-login" />
 
         {edgeLeaves.map((leaf, index) => (
           <div key={index} className={`carbon-leaf-float absolute ${leaf.className}`}>
