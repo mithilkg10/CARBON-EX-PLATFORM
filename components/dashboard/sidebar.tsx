@@ -53,12 +53,12 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
   return (
     <aside 
       className={cn(
-        "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
+        "flex h-screen flex-col border-r border-white/[0.06] bg-[#07100d]/88 shadow-[12px_0_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 p-4 border-b border-sidebar-border">
+      <div className="flex items-center gap-2 border-b border-white/[0.06] p-4">
         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           <Leaf className="w-5 h-5 text-primary" />
         </div>
@@ -78,8 +78,8 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  ? "border border-emerald-300/10 bg-emerald-300/[0.09] text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.05)]"
+                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
               )}
             >
               <link.icon className="h-5 w-5 shrink-0" />
@@ -90,7 +90,7 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
       </nav>
 
       {/* User & Logout */}
-      <div className="p-2 border-t border-sidebar-border">
+      <div className="border-t border-white/[0.06] p-2">
         {(userRole === "regulator" || userRole === "admin") && !collapsed && (
           <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-md bg-primary/10">
             <Shield className="h-4 w-4 text-primary" />
