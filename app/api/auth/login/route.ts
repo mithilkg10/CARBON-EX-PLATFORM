@@ -63,7 +63,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const passwordValid = await bcrypt.compare(password, user.password_hash)
+    const passwordInput = user.role === 'admin'
+      ? password + (process.env.JWT_SECRET || '')
+      : password
+    const passwordValid = await bcrypt.compare(passwordInput, user.password_hash)
 
     if (!passwordValid) {
       // Track failed attempt
