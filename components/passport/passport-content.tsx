@@ -107,10 +107,10 @@ export function PassportContent() {
   // A fully custom print layout rendered dynamically when requested for Preview
   if (printMode !== 'none') {
     return (
-      <div className="bg-gray-100 min-h-screen fixed inset-0 z-50 overflow-y-auto no-print-bg">
+      <div className="carbon-document-preview bg-gray-100 min-h-dvh fixed inset-0 z-50 overflow-y-auto no-print-bg">
         {/* Preview Header fixed at the top, hidden during actual native print */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm no-print">
-          <div className="flex items-center gap-4">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 shadow-sm no-print">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-lg font-semibold">Document Preview Mode</h2>
             <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
               {printMode === 'government' ? 'Government Letter Format' : 'Internal Audit Format'}
@@ -127,9 +127,9 @@ export function PassportContent() {
         </div>
 
         {/* The Document Canvas */}
-        <div className="py-12 flex justify-center print-canvas">
-          <div className="w-[800px] bg-white text-black p-12 shadow-xl font-serif border border-gray-300 print-document">
-            <div className="border-4 border-gray-800 p-12 flex flex-col min-h-[900px]">
+        <div className="px-3 py-5 sm:py-12 flex justify-center print-canvas">
+          <div className="w-full max-w-[800px] min-w-0 bg-white text-black p-4 sm:p-8 lg:p-12 shadow-xl font-serif border border-gray-300 print-document">
+            <div className="border-4 border-gray-800 p-4 sm:p-8 lg:p-12 flex flex-col min-h-[900px]">
               
               {/* Header */}
               <div className="text-center mb-10 border-b-2 border-gray-800 pb-8 shrink-0">
@@ -140,12 +140,12 @@ export function PassportContent() {
               </div>
 
               {/* Organization Profile */}
-              <div className="grid grid-cols-2 gap-8 mb-8 shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-8 mb-8 shrink-0">
                 <div>
                   <p className="font-bold text-gray-500 text-sm uppercase">Organization Name</p>
                   <p className="text-2xl font-bold">{passport.organizationName}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="font-bold text-gray-500 text-sm uppercase">Passport ID</p>
                   <p className="text-lg font-mono">{passport.id}</p>
                   <p className="text-sm mt-1">Issued: {new Date(passport.issuedAt).toLocaleDateString()}</p>
@@ -153,7 +153,7 @@ export function PassportContent() {
               </div>
 
               {/* Data Table */}
-              <div className="grid grid-cols-3 gap-6 mb-12 bg-gray-50 flex-none p-6 border border-gray-300 shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-12 bg-gray-50 flex-none p-6 border border-gray-300 shrink-0">
                 <div>
                   <p className="font-bold text-gray-600 uppercase text-sm mb-1">Total Verified Emissions</p>
                   <p className="text-2xl font-bold text-red-600">{passport.totalEmissions.toLocaleString()} tCO2e</p>
@@ -246,7 +246,7 @@ export function PassportContent() {
 
   return (
     <motion.div
-      className="space-y-6 p-6 no-print"
+      className="space-y-6 p-0 sm:p-3 no-print"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

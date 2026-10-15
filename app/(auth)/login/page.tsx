@@ -51,7 +51,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#050807] px-4 py-8 text-white">
+    <main className="carbon-login relative min-h-dvh overflow-hidden bg-[#050807] px-4 py-8 text-white">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-1/2 h-[48rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/[0.08] blur-[120px]" />
         <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-lime-400/[0.08] blur-[90px]" />
@@ -67,7 +67,7 @@ export default function LoginPage() {
         ))}
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center justify-center">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl items-center justify-center">
         <div className="grid w-full overflow-hidden rounded-[2rem] border border-emerald-300/10 bg-black/30 shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:grid-cols-[0.95fr_1.05fr]">
           <section className="relative hidden min-h-[640px] border-r border-white/[0.06] bg-gradient-to-br from-emerald-400/[0.08] via-transparent to-transparent p-10 lg:flex lg:flex-col">
             <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ export default function LoginPage() {
             </p>
           </section>
 
-          <section className="flex min-h-[640px] items-center p-6 sm:p-10 lg:p-12">
+          <section className="flex min-w-0 items-center p-5 sm:min-h-[640px] sm:p-6 sm:p-10 lg:p-12">
             <div className="mx-auto w-full max-w-md">
               <div className="mb-8 lg:hidden">
                 <div className="flex items-center gap-3">

@@ -16,7 +16,7 @@ export default async function DashboardPage() {
         title="Dashboard" 
         subtitle={`Welcome back, ${session.name}`}
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="min-w-0 flex-1 p-0 sm:p-3">
         <DashboardContent userId={session.userId} userRole={session.role} />
       </div>
     </div>

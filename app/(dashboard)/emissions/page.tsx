@@ -16,7 +16,7 @@ export default async function EmissionsPage() {
         title="Emissions Reporting" 
         subtitle="Track and report your carbon emissions"
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="min-w-0 flex-1 p-0 sm:p-3">
         <EmissionsContent userId={session.userId} />
       </div>
     </div>

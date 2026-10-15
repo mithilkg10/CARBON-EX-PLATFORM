@@ -208,7 +208,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6">
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="col-span-1">
             <Card>
               <CardContent className="pt-6 relative">
@@ -319,7 +319,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
           {/* Bar Chart */}
           <Card className="h-full flex flex-col">
             <CardHeader>
-              <div className="flex items-start justify-between">
+              <div className="flex flex-wrap gap-3 items-start justify-between">
                 <div>
                   <CardTitle className="text-lg">Emissions by Period</CardTitle>
                   <CardDescription>Breakdown by scope dynamically generated</CardDescription>
@@ -566,7 +566,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
 function EmissionsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}

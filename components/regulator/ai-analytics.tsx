@@ -241,7 +241,7 @@ function InfoPopover({ info, color, name }: { info: MetricInfo; color: string; n
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
-        className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
         style={{ background: `${color}18` }}
         aria-label={`Info about ${name}`}
       >
@@ -259,7 +259,7 @@ function InfoPopover({ info, color, name }: { info: MetricInfo; color: string; n
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-6 z-50 w-80 rounded-xl border border-border/60 bg-card shadow-2xl"
+              className="absolute right-0 top-9 z-50 w-[min(20rem,calc(100vw-3rem))] rounded-xl border border-border/60 bg-card shadow-2xl"
               style={{ boxShadow: `0 8px 32px ${color}22` }}
             >
               {/* header */}
@@ -271,7 +271,7 @@ function InfoPopover({ info, color, name }: { info: MetricInfo; color: string; n
                     <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-400 border border-violet-500/30">COMPUTED</span>
                   )}
                 </div>
-                <button onClick={() => setOpen(false)}>
+                <button className="min-h-11 min-w-11" aria-label="Close metric information" onClick={() => setOpen(false)}>
                   <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                 </button>
               </div>

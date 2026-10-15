@@ -59,7 +59,7 @@ export function SecureTransactionLayer({ payload, onComplete, onCancel }: Secure
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
       >
         <div className="border-b border-border bg-muted/50 p-4">
           <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export function SecureTransactionLayer({ payload, onComplete, onCancel }: Secure
           </div>
         </div>
 
-        <div className="p-6 bg-black text-green-400 font-mono text-sm max-h-[400px] overflow-y-auto space-y-3">
+        <div className="p-4 sm:p-6 bg-black text-green-400 font-mono text-sm max-h-[400px] overflow-y-auto space-y-3">
           <AnimatePresence>
             {logs.map((log, i) => (
               <motion.div 
@@ -83,7 +83,7 @@ export function SecureTransactionLayer({ payload, onComplete, onCancel }: Secure
                 <div className="flex items-center justify-between text-green-600/80 text-xs mb-1">
                   <span>[{log.time.split('T')[1].replace('Z', '')}] SYSTEM_{log.step}</span>
                 </div>
-                <div className="font-semibold">{log.message}</div>
+                <div className="break-words font-semibold">{log.message}</div>
                 <div className="text-green-300 break-all opacity-80 mt-1">{'>'} {log.output}</div>
               </motion.div>
             ))}
@@ -97,7 +97,7 @@ export function SecureTransactionLayer({ payload, onComplete, onCancel }: Secure
           )}
         </div>
 
-        <div className="border-t border-border bg-muted/20 p-4 flex justify-between items-center">
+        <div className="border-t border-border bg-muted/20 p-4 flex flex-wrap gap-3 justify-between items-center">
           <div className="flex items-center gap-2">
             {isProcessing ? (
               <>

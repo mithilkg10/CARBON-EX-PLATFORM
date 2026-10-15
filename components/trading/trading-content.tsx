@@ -244,7 +244,7 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
       {/* Wallet Balance Section */}
       {walletBalance !== null && (
         <Card className="bg-gradient-to-br from-emerald-950/30 to-background border-emerald-500/20">
-          <CardContent className="p-6 flex items-center justify-between">
+          <CardContent className="p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
                 <Wallet className="h-6 w-6" />
@@ -632,7 +632,7 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
 
       {/* Receipt Modal */}
       <Dialog open={!!receiptTrade} onOpenChange={(open: boolean) => !open && setReceiptTrade(null)}>
-        <DialogContent className="sm:max-w-md bg-white text-black p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-white text-black p-0 overflow-y-auto border-none shadow-2xl">
           <div className="bg-gray-100 px-6 py-4 flex justify-between items-center border-b border-gray-200 no-print">
             <DialogTitle className="text-black">Transaction Receipt</DialogTitle>
             <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">

@@ -46,7 +46,7 @@ export function CarbonPriceChart({ data, timeframe, currentPrice, priceChange, o
   return (
     <Card className={chartCardClass}>
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="text-lg">Carbon Credit Price</CardTitle>
             <CardDescription>
@@ -76,7 +76,7 @@ export function CarbonPriceChart({ data, timeframe, currentPrice, priceChange, o
         </div>
       </CardHeader>
       <CardContent className="flex-1">
-        <div className="h-[260px] w-full">
+        <div className="h-[220px] min-w-0 w-full sm:h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 4, left: -18, bottom: 0 }}>
               <defs>
@@ -132,7 +132,7 @@ export function TradingVolumeChart({ data, timeframe, onTimeframeChange }: Omit<
   return (
     <Card className={chartCardClass}>
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="text-lg">Trading Volume</CardTitle>
             <CardDescription>
@@ -156,7 +156,7 @@ export function TradingVolumeChart({ data, timeframe, onTimeframeChange }: Omit<
         </div>
       </CardHeader>
       <CardContent className="flex-1">
-        <div className="h-[260px] w-full">
+        <div className="h-[220px] min-w-0 w-full sm:h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 4, left: -10, bottom: 0 }}>
               <defs>

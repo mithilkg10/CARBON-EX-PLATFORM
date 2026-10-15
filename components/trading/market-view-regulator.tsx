@@ -57,7 +57,7 @@ export function RegulatorMarketView() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap gap-3 justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Market Supervision</h2>
           <p className="text-muted-foreground">Real-time exchange metrics for regulatory bodies</p>

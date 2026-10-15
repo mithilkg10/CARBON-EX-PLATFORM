@@ -250,7 +250,7 @@ export function RegulatorContent() {
 
   return (
     <motion.div
-      className="space-y-6 p-6"
+      className="space-y-6 p-0 sm:p-3"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -265,7 +265,7 @@ export function RegulatorContent() {
       </motion.div>
 
       {/* Stats Overview */}
-      <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           title="Total Entities"
           value={dynamicStats.totalEntities}

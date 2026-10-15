@@ -205,7 +205,7 @@ export function AuditContent() {
 
   return (
     <motion.div
-      className="space-y-6 p-6"
+      className="space-y-6 p-0 sm:p-3"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -219,7 +219,7 @@ export function AuditContent() {
       </motion.div>
 
       {/* Stats */}
-      <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+      <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">

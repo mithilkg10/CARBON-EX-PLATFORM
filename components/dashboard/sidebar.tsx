@@ -14,9 +14,11 @@ import {
   Leaf,
   ChevronLeft,
   ChevronRight,
+  Menu,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet"
 
 import type { UserRole } from "@/lib/db/types"
 
@@ -29,6 +31,14 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)")
+    const closeOnDesktop = () => { if (desktop.matches) setMobileOpen(false) }
+    desktop.addEventListener("change", closeOnDesktop)
+    return () => desktop.removeEventListener("change", closeOnDesktop)
+  }, [])
 
   const companyLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -51,9 +61,23 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
   }
 
   return (
+    <>
+    <div className="carbon-mobile-bar flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#07100d] px-4 py-3 lg:hidden">
+      <Link href={links[0].href} className="flex min-h-11 items-center gap-2 font-semibold"><Leaf className="h-5 w-5 text-primary" />CarbonEx</Link>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11" aria-label="Open navigation"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+        <SheetContent side="left" className="carbon-mobile-drawer w-[min(20rem,88vw)] gap-0 overflow-y-auto bg-[#07100d] p-0 text-white">
+          <div className="border-b border-white/10 p-5 pr-16"><SheetTitle className="text-white">CarbonEx</SheetTitle><SheetDescription>Navigate your {userRole} workspace.</SheetDescription></div>
+          <nav aria-label="Mobile navigation" className="space-y-2 p-3">
+            {links.map(link => <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} aria-current={pathname === link.href ? "page" : undefined} className={cn("flex min-h-12 items-center gap-3 rounded-lg px-3 py-3 text-sm", pathname === link.href ? "bg-emerald-300/10 text-emerald-100" : "text-slate-300 hover:bg-white/5")}><link.icon className="h-5 w-5 shrink-0" />{link.label}</Link>)}
+          </nav>
+          <div className="mt-auto border-t border-white/10 p-4"><p className="break-words text-sm font-medium">{userName}</p><p className="mt-1 text-xs capitalize text-slate-400">{userRole}</p><Button variant="ghost" className="mt-3 min-h-11 w-full justify-start" onClick={handleLogout}><LogOut className="mr-2 h-5 w-5" />Sign out</Button></div>
+        </SheetContent>
+      </Sheet>
+    </div>
     <aside 
       className={cn(
-        "flex h-screen flex-col border-r border-white/[0.06] bg-[#07100d]/88 shadow-[12px_0_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-300",
+        "hidden h-full shrink-0 flex-col border-r border-white/[0.06] bg-[#07100d]/88 shadow-[12px_0_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-300 lg:flex",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -68,13 +92,15 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
+      <nav aria-label="Desktop navigation" className="min-h-0 flex-1 overflow-y-auto p-2 space-y-1">
         {links.map((link) => {
           const isActive = pathname === link.href
           return (
             <Link
               key={link.href}
               href={link.href}
+              title={link.label}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive
@@ -125,6 +151,7 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
           variant="ghost"
           size="icon"
           className="w-full mt-2 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? (
@@ -135,5 +162,6 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
         </Button>
       </div>
     </aside>
+    </>
   )
 }

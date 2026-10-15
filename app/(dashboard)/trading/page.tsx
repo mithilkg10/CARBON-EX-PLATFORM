@@ -16,7 +16,7 @@ export default async function TradingPage() {
         title="Trading Console" 
         subtitle="Buy and sell carbon credits securely"
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="min-w-0 flex-1 p-0 sm:p-3">
         <TradingContent userId={session.userId} userRole={session.role} />
       </div>
     </div>

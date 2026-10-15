@@ -20,15 +20,15 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { setTheme, theme } = useTheme()
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <header className="flex items-center justify-between gap-3 px-0 py-4 sm:px-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold sm:text-2xl tracking-tight">{title}</h1>
         {subtitle && (
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-4">
 
 
         {/* Theme toggle */}

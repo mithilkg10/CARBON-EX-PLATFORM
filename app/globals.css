@@ -329,3 +329,46 @@
     animation: none;
   }
 }
+
+/* Shared responsive shell: mobile browser chrome, notches and touch input. */
+.carbon-app-shell { height: 100vh; height: 100dvh; }
+.carbon-workspace { padding-bottom: env(safe-area-inset-bottom); }
+.carbon-mobile-bar {
+  padding-top: max(.75rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+.carbon-mobile-drawer {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.carbon-login {
+  padding-top: max(2rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+.carbon-workspace .grid > *, [data-slot="card"], [data-slot="card-content"] { min-width: 0; }
+[data-slot="tabs-list"] { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+[data-slot="tabs-trigger"] { flex-shrink: 0; }
+[data-slot="table-container"] { -webkit-overflow-scrolling: touch; }
+.carbon-document-preview { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  [data-slot="dialog-content"] { padding: 1rem; max-height: calc(100dvh - 2rem); }
+  [data-slot="card-header"], [data-slot="card-content"], [data-slot="card-footer"] { padding-inline: 1rem; }
+  .carbon-document-preview h1 { font-size: 1.35rem; }
+  .carbon-document-preview h2, .carbon-document-preview h3 { font-size: 1.1rem; }
+}
+@media (pointer: coarse) {
+  /* 16px prevents Safari's automatic form-focus zoom; user pinch zoom stays enabled. */
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px; }
+  [data-slot="button"], [data-slot="select-trigger"], [data-slot="tabs-trigger"] { min-height: 44px; }
+  [data-slot="dialog-close"], [data-slot="sheet-content"] > button { min-width: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
+@media (pointer: coarse) {
+  [data-slot="tabs-list"] { height: auto; min-height: 48px; }
+}
+@media (max-width: 1023px) {
+  .carbon-workspace { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
