@@ -232,8 +232,8 @@ function LiveDot() {
 
 function TrendIcon({ prev, curr }: { prev: number; curr: number }) {
   if (Math.abs(curr - prev) < 0.05) return <Minus className="h-3 w-3 text-muted-foreground" />
-  if (curr > prev) return <ChevronUp className="h-3 w-3 text-emerald-400" />
-  return <ChevronDown className="h-3 w-3 text-red-400" />
+  if (curr > prev) return <ChevronUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+  return <ChevronDown className="h-3 w-3 text-red-600 dark:text-red-400" />
 }
 
 // ─── Info Popover ─────────────────────────────────────────────────────────────
@@ -272,7 +272,7 @@ function InfoPopover({ info, color, name }: { info: MetricInfo; color: string; n
                   <FlaskConical className="h-3.5 w-3.5" style={{ color }} />
                   <span className="text-xs font-semibold" style={{ color }}>{name}</span>
                   {info.isSimulated && (
-                    <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-400 border border-violet-500/30">COMPUTED</span>
+                    <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-400 border border-violet-500/30">COMPUTED</span>
                   )}
                 </div>
                 <button className="min-h-11 min-w-11" aria-label="Close metric information" onClick={() => setOpen(false)}>
@@ -448,7 +448,7 @@ export function AIAnalytics({ flaggedCount = 0, openReviews = 0 }: { flaggedCoun
   const statusConfig = {
     optimal: { label: "Optimal", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
     warning: { label: "Elevated", color: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
-    degraded: { label: "Degraded", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+    degraded: { label: "Degraded", color: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
   }
 
   return (
@@ -457,7 +457,7 @@ export function AIAnalytics({ flaggedCount = 0, openReviews = 0 }: { flaggedCoun
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20">
-            <Brain className="h-6 w-6 text-violet-400" />
+            <Brain className="h-6 w-6 text-violet-600 dark:text-violet-400" />
           </div>
           <div>
             <h2 className="text-xl font-bold tracking-tight">AI analytics</h2>
@@ -529,7 +529,7 @@ export function AIAnalytics({ flaggedCount = 0, openReviews = 0 }: { flaggedCoun
         <Card className="lg:col-span-2 border-border/50 bg-card/60 backdrop-blur-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4 text-emerald-400" />
+              <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               Live Performance Metrics
             </CardTitle>
             <CardDescription className="text-xs">Accuracy · Precision · Recall · F1 over time</CardDescription>
@@ -584,7 +584,7 @@ export function AIAnalytics({ flaggedCount = 0, openReviews = 0 }: { flaggedCoun
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Brain className="h-4 w-4 text-violet-400" />
+              <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400" />
               Model Profile
             </CardTitle>
             <CardDescription className="text-xs">Normalised dimensions</CardDescription>
