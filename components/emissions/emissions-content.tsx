@@ -429,7 +429,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Emission Type</label>
                       <Select value={emissionType} onValueChange={setEmissionType}>
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Emission type">
                           <SelectValue placeholder="Select scope" />
                         </SelectTrigger>
                         <SelectContent>
@@ -466,7 +466,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Data Source (Optional)</label>
                       <Select value={dataSource} onValueChange={setDataSource}>
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Data source">
                           <SelectValue placeholder="Select source" />
                         </SelectTrigger>
                         <SelectContent>

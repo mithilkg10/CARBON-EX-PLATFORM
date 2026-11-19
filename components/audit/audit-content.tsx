@@ -219,7 +219,7 @@ export function AuditContent() {
                     : <><XCircle className="h-5 w-5 text-red-600" /><span className="font-medium">Chain broken</span></>}
                 </div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Ledger blocks</span><span>{data.ledgerStats.totalTransactions}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Settled value</span><span>${data.ledgerStats.totalVolume.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Settled value</span><span>${data.ledgerStats.totalVolume.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Verified at</span><span>{new Date(data.ledgerStats.lastVerifiedAt).toLocaleTimeString()}</span></div>
                 <Button variant="outline" size="sm" className="w-full" onClick={() => mutate()}>Verify again</Button>
               </>

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { 
   Leaf, 
   TrendingUp, 
+  TrendingDown,
   Zap, 
   Shield,
   Activity,
@@ -54,8 +55,8 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
           value={formatUsd(snapshot.price)}
           change={snapshot.change}
           changeLabel={`over ${periodLabel}`}
-          icon={TrendingUp}
-          iconColor="text-emerald-500"
+          icon={snapshot.change >= 0 ? TrendingUp : TrendingDown}
+          iconColor={snapshot.change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
         />
         <StatsCard
           title="Your credits"
