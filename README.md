@@ -56,14 +56,13 @@ The repository includes demonstration data and prototype storage paths; it does 
 ## Project structure
 
 ```text
-app/
-components/
-backend/
-frontend/
-hooks/
-lib/
-public/
-styles/
+app/            Next.js routes and API handlers
+components/     UI for dashboard, trading, emissions, passport, regulator and audit
+docs/           technical report, methodology notes and mobile review
+hooks/          shared React hooks (portfolio data with the demo sandbox applied)
+lib/            market engine, in-memory database, STAVP ledger, STL C³T pipeline, auth
+public/         static assets
+
 ```
 
 ## Local development
@@ -89,16 +88,19 @@ Copy `.env.example` to `.env.local` locally, or set the same names in deployment
 JWT_SECRET=
 ADMIN_EMAIL=
 ADMIN_PASSWORD_HASH=
-DEMO_PASSWORD=
 ```
 
-`JWT_SECRET` must be a unique random string of at least 32 characters. `ADMIN_PASSWORD_HASH` is a bcrypt hash of your private owner password; configure it together with `ADMIN_EMAIL`. `DEMO_PASSWORD` is a separate password of at least 12 characters. When set, it provisions `demo.company@mithilkg.dev` and `demo.regulator@mithilkg.dev` over synthetic in-memory data. Both demo roles can view but cannot trade, change records, approve registrations, block users, or read private audit logs. Share the demo password separately with recruiters.
+`JWT_SECRET` must be a unique random string of at least 32 characters. The owner account exists only when `JWT_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` are all set. `ADMIN_PASSWORD_HASH` is a bcrypt hash of the owner password with the value of `JWT_SECRET` appended before hashing.
 
 When using `.env.local`, escape each `$` in the bcrypt hash as `\$` so Next.js environment expansion preserves it. Deployment secret dashboards accept the unescaped hash.
 
-Owner login: `/login` with the configured `ADMIN_EMAIL` and its original private password (the value represented by `ADMIN_PASSWORD_HASH`). Demo login: `/login` with either demo email and `DEMO_PASSWORD`. The page offers email selection and never displays a privileged password.
+### Recruiter demo
 
-Self-service registration and password setup are disabled because this prototype has no verified invitation or email-ownership flow. Storage is in-memory and resets across processes; a successful local login does not prove a deployed serverless session works across instances.
+The login page has one click Company demo and Regulator demo buttons. Demo sessions call the same API routes as real accounts: trades run the full STAVP checks and SHA 256 ledger chaining, and the browser side STL C³T step uses AES 256 GCM and SHA 256 from the Web Crypto API. For demo accounts the server returns the computed result marked as simulated and does not change the shared dataset. The result is kept in the visitor's browser tab, so a purchase updates the wallet, holdings, trade history, passport and audit trail for that visitor only.
+
+### Data model
+
+Storage is in memory. The seed is deterministic (fixed PRNG seed, dates relative to the current day) and all prices and volumes come from one market engine in `lib/market/engine.ts`, so every page, every API route and every serverless instance shows the same numbers. Self service registration is disabled because the prototype has no verified invitation or email ownership flow.
 
 ### Start
 

@@ -58,8 +58,8 @@ import {
   Cell,
   Legend,
 } from "recharts"
-import { type Timeframe } from "@/lib/utils/market-data"
-import { formatXAxis } from "@/components/dashboard/market-charts"
+import { tooltipStyle } from "@/components/dashboard/market-charts"
+import { useSandbox, updateSandbox, recordAction } from "@/lib/demo/sandbox"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -75,60 +75,67 @@ interface Emission {
 
 interface EmissionsData {
   emissions: Emission[]
+  summary: Array<{ period: string; scope1: number; scope2: number; scope3: number; total: number }>
   totals: {
     scope1: number
     scope2: number
     scope3: number
     total: number
+    verified: number
+    pending: number
   }
+}
+
+type Range = "6M" | "12M"
+
+function formatPeriod(period: string) {
+  const [y, m] = period.split("-").map(Number)
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" })
 }
 
 interface EmissionsContentProps {
   userId: string
 }
 
-// Generate dynamic timeframe-based emissions data
-function generateEmissionsSummary(timeframe: Timeframe) {
-  const points = [];
-  const now = new Date();
-  
-  let numPoints = 24; 
-  let stepMs = 60 * 60 * 1000;
-  
-  if (timeframe === '1W') {
-    numPoints = 7;
-    stepMs = 24 * 60 * 60 * 1000;
-  } else if (timeframe === '15D') {
-    numPoints = 15;
-    stepMs = 24 * 60 * 60 * 1000;
-  } else if (timeframe === '30D') {
-    numPoints = 30;
-    stepMs = 24 * 60 * 60 * 1000;
-  }
-
-  for (let i = numPoints; i >= 0; i--) {
-    const pointTime = new Date(now.getTime() - (i * stepMs));
-    points.push({
-      date: pointTime.toISOString(),
-      scope1: Math.floor(Math.random() * 50) + 10,
-      scope2: Math.floor(Math.random() * 40) + 5,
-      scope3: Math.floor(Math.random() * 60) + 20,
-    });
-  }
-  return points;
-}
-
 export function EmissionsContent({ userId }: EmissionsContentProps) {
-  // Use SWR for real-time fetching, caching, and mutation syncing
-  const { data, error, isLoading, mutate } = useSWR<EmissionsData>("/api/emissions", fetcher, {
-    refreshInterval: 30000, // Poll every 30s instead of 3s to reduce CPU load
+  const { data: serverData, isLoading, mutate } = useSWR<EmissionsData>("/api/emissions", fetcher, {
+    refreshInterval: 30000,
   })
+  const sandbox = useSandbox()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  
-  const [timeframe, setTimeframe] = useState<Timeframe>("30D")
-  const chartData = useMemo(() => generateEmissionsSummary(timeframe), [timeframe])
+  const [range, setRange] = useState<Range>("12M")
+
+  // Reports submitted in the recruiter sandbox are merged into the same tables and totals.
+  const data = useMemo<EmissionsData | undefined>(() => {
+    if (!serverData) return undefined
+    if (sandbox.emissions.length === 0) return serverData
+    const totals = { ...serverData.totals }
+    const byPeriod = new Map(serverData.summary.map(r => [r.period, { ...r }]))
+    for (const e of sandbox.emissions) {
+      const key = e.type as "scope1" | "scope2" | "scope3"
+      totals[key] += e.amount
+      totals.total += e.amount
+      totals.pending += e.amount
+      const row = byPeriod.get(e.period) ?? { period: e.period, scope1: 0, scope2: 0, scope3: 0, total: 0 }
+      row[key] += e.amount
+      row.total += e.amount
+      byPeriod.set(e.period, row)
+    }
+    return {
+      emissions: [...sandbox.emissions, ...serverData.emissions],
+      summary: Array.from(byPeriod.values()).sort((a, b) => a.period.localeCompare(b.period)),
+      totals,
+    }
+  }, [serverData, sandbox.emissions])
+
+  const chartData = useMemo(() => {
+    const rows = data?.summary ?? []
+    return rows.slice(range === "6M" ? -6 : -12).map(r => ({ ...r, label: formatPeriod(r.period) }))
+  }, [data, range])
+
+  const currentPeriod = new Date().toISOString().slice(0, 7)
 
   // Form state
   const [emissionType, setEmissionType] = useState("")
@@ -156,18 +163,22 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
       })
 
       const result = await res.json()
-      
+
       if (!res.ok) {
         toast.error(result.error || "Failed to submit emissions")
         return
       }
 
-      toast.success(result.message || "Emissions submitted successfully")
+      if (result.simulated) {
+        updateSandbox(s => ({ ...s, emissions: [result.emission, ...s.emissions] }))
+        recordAction({ action: "EMISSION_SUBMIT", entityType: "emission", entityId: result.emission.id, details: { type: result.emission.type, amount: result.emission.amount, period: result.emission.period } })
+      } else {
+        await mutate()
+      }
+
+      toast.success(result.message || "Emissions submitted")
       setDialogOpen(false)
       resetForm()
-      
-      // Mutate the SWR cache to update KPIs and Table in real time!
-      await mutate()
     } catch {
       toast.error("Failed to submit emissions")
     } finally {
@@ -295,7 +306,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                     <AlertTriangle className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Live Emissions</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total, last 12 months</p>
                     <AnimatePresence mode="popLayout">
                       <motion.p 
                         key={data?.totals?.total}
@@ -306,7 +317,9 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                         {data?.totals?.total?.toLocaleString() || 0}
                       </motion.p>
                     </AnimatePresence>
-                    <p className="text-xs text-muted-foreground">tonnes CO2e</p>
+                    <p className="text-xs text-muted-foreground">
+                      tonnes CO2e · {(data?.totals?.pending ?? 0).toLocaleString()} pending verification
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -321,18 +334,16 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
             <CardHeader>
               <div className="flex flex-wrap gap-3 items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">Emissions by Period</CardTitle>
-                  <CardDescription>Breakdown by scope dynamically generated</CardDescription>
+                  <CardTitle className="text-lg">Emissions by month</CardTitle>
+                  <CardDescription>Scope 1, 2 and 3 tonnes from your submitted reports</CardDescription>
                 </div>
-                <Select value={timeframe} onValueChange={(val) => setTimeframe(val as Timeframe)}>
-                  <SelectTrigger className="w-[100px] h-8 text-xs">
-                    <SelectValue placeholder="Time" />
+                <Select value={range} onValueChange={(val) => setRange(val as Range)}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs" aria-label="Range">
+                    <SelectValue placeholder="Range" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1D">1 Day</SelectItem>
-                    <SelectItem value="1W">1 Week</SelectItem>
-                    <SelectItem value="15D">15 Days</SelectItem>
-                    <SelectItem value="30D">30 Days</SelectItem>
+                    <SelectItem value="6M">Last 6 months</SelectItem>
+                    <SelectItem value="12M">Last 12 months</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -340,30 +351,15 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
             <CardContent className="flex-1">
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(val) => formatXAxis(val, timeframe)}
-                      tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }}
-                      minTickGap={20}
-                    />
-                    <YAxis 
-                      tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--color-card)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '8px',
-                        color: 'var(--color-foreground)'
-                      }}
-                      labelFormatter={(value) => new Date(value).toLocaleString()}
-                    />
+                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -12, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} minTickGap={8} />
+                    <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} />
+                    <RechartsTooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--color-muted)', opacity: 0.4 }} formatter={(value: number, name: string) => [`${value.toLocaleString()} t`, name]} />
                     <Legend />
                     <Bar dataKey="scope1" stackId="a" fill={scopeColors.scope1} name="Scope 1" />
                     <Bar dataKey="scope2" stackId="a" fill={scopeColors.scope2} name="Scope 2" />
-                    <Bar dataKey="scope3" stackId="a" fill={scopeColors.scope3} name="Scope 3" />
+                    <Bar dataKey="scope3" stackId="a" fill={scopeColors.scope3} name="Scope 3" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -374,7 +370,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
           <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle className="text-lg">Emissions Distribution</CardTitle>
-              <CardDescription>Live breakdown matching your submitted logs</CardDescription>
+              <CardDescription>Share of each scope across your reports</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               <div className="h-[300px] w-full">
@@ -395,13 +391,8 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                       ))}
                     </Pie>
                     <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--color-card)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '8px',
-                        color: 'var(--color-foreground)'
-                      }}
-                      formatter={(value: number) => [`${value.toLocaleString()} tonnes`, '']}
+                      contentStyle={tooltipStyle}
+                      formatter={(value: number, name: string) => [`${value.toLocaleString()} tonnes`, name]}
                     />
                     <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
@@ -414,10 +405,10 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
         {/* Emissions Table */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-lg">Emission Reports</CardTitle>
-                <CardDescription>All submitted emission reports directly influence your real-time KPIs above.</CardDescription>
+                <CardTitle className="text-lg">Emission reports</CardTitle>
+                <CardDescription>Every report feeds the totals above and the verified emissions on your carbon passport.</CardDescription>
               </div>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
@@ -442,16 +433,18 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                           <SelectValue placeholder="Select scope" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="scope1">Scope 1 - Direct Emissions</SelectItem>
-                          <SelectItem value="scope2">Scope 2 - Electricity</SelectItem>
-                          <SelectItem value="scope3">Scope 3 - Supply Chain</SelectItem>
+                          <SelectItem value="scope1">Scope 1: direct emissions</SelectItem>
+                          <SelectItem value="scope2">Scope 2: purchased energy</SelectItem>
+                          <SelectItem value="scope3">Scope 3: value chain</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Amount (tonnes CO2e)</label>
+                      <label htmlFor="emission-amount" className="text-sm font-medium">Amount (tonnes CO2e)</label>
                       <Input
+                        id="emission-amount"
+                        min={0}
                         type="number"
                         placeholder="Enter amount"
                         value={amount}
@@ -460,8 +453,10 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Reporting Period</label>
+                      <label htmlFor="emission-period" className="text-sm font-medium">Reporting period</label>
                       <Input
+                        id="emission-period"
+                        max={currentPeriod}
                         type="month"
                         value={period}
                         onChange={(e) => setPeriod(e.target.value)}
@@ -510,7 +505,7 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.emissions.slice(0, 20).map((emission) => {
+                  {data.emissions.slice(0, 36).map((emission) => {
                     const Icon = scopeIcons[emission.type as keyof typeof scopeIcons] || Factory
                     return (
                       <TableRow key={emission.id}>
@@ -523,16 +518,16 @@ export function EmissionsContent({ userId }: EmissionsContentProps) {
                         <TableCell className="font-medium">
                           {emission.amount.toLocaleString()} tonnes
                         </TableCell>
-                        <TableCell>{emission.period}</TableCell>
+                        <TableCell>{formatPeriod(emission.period)}</TableCell>
                         <TableCell className="text-muted-foreground">{emission.source}</TableCell>
                         <TableCell>
                           {emission.status === "verified" ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-500">
+                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                               <FileCheck className="h-3 w-3 mr-1" />
                               Verified
                             </Badge>
                           ) : emission.status === "pending" ? (
-                            <Badge variant="outline" className="text-amber-500">
+                            <Badge variant="outline" className="text-amber-600 dark:text-amber-400">
                               <Clock className="h-3 w-3 mr-1" />
                               Pending
                             </Badge>

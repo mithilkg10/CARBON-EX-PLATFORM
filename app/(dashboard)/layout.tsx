@@ -15,10 +15,10 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="carbon-app-shell relative flex overflow-hidden bg-[#050807]">
+    <div className="carbon-app-shell relative flex overflow-hidden bg-background">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-44 -top-36 h-[36rem] w-[36rem] rounded-full bg-emerald-500/[0.10] blur-[125px]" />
-        <div className="absolute right-[-8rem] top-[8%] h-[32rem] w-[32rem] rounded-full bg-cyan-400/[0.07] blur-[130px]" />
+        <div className="absolute -left-44 -top-36 h-[36rem] w-[36rem] rounded-full bg-emerald-500/[0.06] blur-[125px] dark:bg-emerald-500/[0.10]" />
+        <div className="absolute right-[-8rem] top-[8%] h-[32rem] w-[32rem] rounded-full bg-cyan-400/[0.05] blur-[130px] dark:bg-cyan-400/[0.07]" />
         <div className="absolute bottom-[-15rem] left-[28%] h-[34rem] w-[34rem] rounded-full bg-lime-400/[0.06] blur-[140px]" />
 
         <div className="carbon-ribbon carbon-ribbon-a" />
@@ -35,8 +35,8 @@ export default async function DashboardLayout({
         <Sidebar userRole={session.role} userName={session.name} />
         <main className="carbon-workspace min-h-0 min-w-0 flex-1 overflow-auto">
           {session.isDemo && (
-            <div className="z-30 border-b border-emerald-300/10 bg-emerald-300/[0.05] px-5 py-2 text-xs text-emerald-100 backdrop-blur-xl">
-              Recruiter demo · synthetic data · view-only access
+            <div className="z-30 border-b border-emerald-600/15 bg-emerald-500/[0.07] px-5 py-2 text-xs text-emerald-900 backdrop-blur-xl dark:border-emerald-300/10 dark:bg-emerald-300/[0.05] dark:text-emerald-100">
+              Recruiter demo · synthetic data · your actions run through the real checks and stay in this browser tab
             </div>
           )}
           <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-5 lg:p-8">

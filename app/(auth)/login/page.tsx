@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, ArrowRight, Leaf, Lock, Mail, Scale, ShieldCheck, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { clearSandboxStorage } from "@/lib/demo/sandbox"
 
 const edgeLeaves = [
   { className: "left-[3%] top-[8%] rotate-[-28deg] delay-0", size: "h-16 w-16" },
@@ -23,6 +24,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // A new visit to the login page starts a fresh recruiter sandbox.
+  useEffect(() => {
+    clearSandboxStorage()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,7 +57,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="carbon-login relative min-h-dvh overflow-hidden bg-[#050807] px-4 py-8 text-white">
+    <main className="carbon-login dark relative min-h-dvh overflow-hidden bg-[#050807] px-4 py-8 text-white">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-1/2 h-[48rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/[0.08] blur-[120px]" />
         <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-lime-400/[0.08] blur-[90px]" />
@@ -86,7 +92,7 @@ export default function LoginPage() {
                 Security built into the transaction flow
               </div>
               <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight">
-                Carbon-market workflows with access control, auditability and tamper-evident records.
+                Carbon market workflows with access control, auditability and tamper evident records.
               </h1>
               <p className="mt-5 text-sm leading-7 text-slate-400">
                 CarbonEx combines company and regulator workflows with Digital Carbon Passports, controlled trade operations and reviewable audit evidence.
@@ -96,7 +102,7 @@ export default function LoginPage() {
                 {[
                   "Role-separated company and regulator workflows",
                   "Protected transaction and audit paths",
-                  "Synthetic recruiter environment with write actions blocked",
+                  "Recruiter sandbox: every action runs through the real checks without touching shared data",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] p-3.5">
                     <span className="mt-0.5 grid h-5 w-5 place-items-center rounded-full bg-emerald-400/10">
@@ -109,7 +115,7 @@ export default function LoginPage() {
             </div>
 
             <p className="text-xs leading-5 text-slate-500">
-              Research prototype · synthetic recruiter data · no production financial activity
+              Research prototype · synthetic data · no real financial activity
             </p>
           </section>
 
@@ -131,7 +137,7 @@ export default function LoginPage() {
                 <p className="text-sm font-medium text-emerald-300">Operator access</p>
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight">Sign in to CarbonEx</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Private accounts use credentials. Recruiters can open a view-only synthetic session below.
+                  Private accounts use credentials. Recruiters can open a demo session below, no sign up needed.
                 </p>
               </div>
 
@@ -153,6 +159,8 @@ export default function LoginPage() {
                       <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       <Input
                         type="email"
+                        autoComplete="username"
+                        aria-label="Email address"
                         placeholder="Email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -165,6 +173,8 @@ export default function LoginPage() {
                       <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       <Input
                         type="password"
+                        autoComplete="current-password"
+                        aria-label="Password"
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -177,6 +187,7 @@ export default function LoginPage() {
                       type="submit"
                       className="h-11 w-full bg-emerald-400 font-semibold text-emerald-950 shadow-[0_0_25px_rgba(52,211,153,0.15)] hover:bg-emerald-300"
                       disabled={loading}
+                      aria-label="Sign in"
                     >
                       {loading ? "Signing in..." : <span className="flex items-center gap-2">Sign in <ArrowRight className="h-4 w-4" /></span>}
                     </Button>
@@ -211,7 +222,7 @@ export default function LoginPage() {
               <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-300/10 bg-emerald-300/[0.035] p-4">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
                 <p className="text-xs leading-5 text-slate-400">
-                  Recruiter access requires no username or password and uses synthetic, read-only records.
+                  Recruiter access needs no username or password. Data is synthetic, and anything you do stays in your own browser tab.
                 </p>
               </div>
             </div>

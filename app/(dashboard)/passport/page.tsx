@@ -1,19 +1,16 @@
-"use client"
-
-import { Suspense } from "react"
+import { requirePageSession } from "@/lib/auth/session"
+import { Header } from "@/components/dashboard/header"
 import { PassportContent } from "@/components/passport/passport-content"
-import { Spinner } from "@/components/ui/spinner"
 
-export default function PassportPage() {
+export default async function PassportPage() {
+  await requirePageSession(["company"])
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-[80vh] items-center justify-center">
-          <Spinner className="h-8 w-8" />
-        </div>
-      }
-    >
-      <PassportContent />
-    </Suspense>
+    <div className="flex h-full flex-col">
+      <Header title="Digital carbon passport" subtitle="Verified emissions, credits held and certifications" />
+      <div className="min-w-0 flex-1 p-0 pt-4 sm:p-3">
+        <PassportContent />
+      </div>
+    </div>
   )
 }

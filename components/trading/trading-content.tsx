@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { motion } from "framer-motion"
 import {
   ShoppingCart,
@@ -13,10 +13,11 @@ import {
   TrendingUp,
   Leaf,
   Wallet,
-  Download,
+  FileText,
   Plus,
-  Shield,
+  ShieldCheck,
   Printer,
+  Lock,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,268 +25,243 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { CarbonPriceChart } from "@/components/dashboard/market-charts"
-import { generateMarketData, type Timeframe } from "@/lib/utils/market-data"
-import { RegulatorMarketView } from "./market-view-regulator"
+import { getMarketSeries, getMarketSnapshot, formatUsd, type Timeframe } from "@/lib/market/engine"
 import { SecureTransactionLayer } from "./secure-transaction-layer"
-import type { TransactionPayload } from "@/lib/security-layer/transaction"
-
-interface Credit {
-  id: string
-  type: string
-  vintageYear: number
-  quantity: number
-  pricePerUnit: number
-  expiryDate: string
-  certificationBody: string
-}
-
-interface Trade {
-  id: string
-  buyerName: string
-  sellerName: string
-  quantity: number
-  pricePerUnit: number
-  totalPrice: number
-  status: string
-  ledgerHash: string
-  createdAt: string
-  isUserBuyer: boolean
-  isUserSeller: boolean
-}
+import type { TransactionPayload, CommitResult } from "@/lib/security-layer/transaction"
+import { usePortfolio, type Credit, type Trade } from "@/hooks/use-portfolio"
+import { updateSandbox, recordAction, useSandbox } from "@/lib/demo/sandbox"
 
 interface TradingContentProps {
   userId: string
-  userRole?: string
 }
 
-export function TradingContent({ userId, userRole }: TradingContentProps) {
-  const [credits, setCredits] = useState<{ forPurchase: Credit[]; forSale: Credit[] } | null>(null)
-  const [trades, setTrades] = useState<{ trades: Trade[]; summary: { totalBought: number; totalSold: number } } | null>(null)
-  const [loading, setLoading] = useState(true)
+const creditTypeColors: Record<string, string> = {
+  renewable: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  forestry: "bg-green-500/10 text-green-700 dark:text-green-400",
+  industrial: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  agriculture: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+}
+
+export function TradingContent({ userId }: TradingContentProps) {
+  const { portfolio, isLoading, error, refresh } = usePortfolio()
+  const sandbox = useSandbox()
+
   const [selectedCredit, setSelectedCredit] = useState<Credit | null>(null)
   const [buyQuantity, setBuyQuantity] = useState("")
   const [buyDialogOpen, setBuyDialogOpen] = useState(false)
-  const [processing, setProcessing] = useState(false)
   const [listingId, setListingId] = useState<string | null>(null)
-  
-  const [showSTL, setShowSTL] = useState(false)
   const [stlPayload, setStlPayload] = useState<TransactionPayload | null>(null)
-
-  const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [addMoneyDialogOpen, setAddMoneyDialogOpen] = useState(false)
   const [addMoneyAmount, setAddMoneyAmount] = useState("")
+  const [addingFunds, setAddingFunds] = useState(false)
   const [receiptTrade, setReceiptTrade] = useState<Trade | null>(null)
+  const [activeTab, setActiveTab] = useState("buy")
 
-  // Chart state
   const [timeframe, setTimeframe] = useState<Timeframe>("30D")
-  const chartData = useMemo(() => generateMarketData(timeframe), [timeframe])
-  const currentSimulatedPrice = chartData[chartData.length - 1]?.price || 0
-  const firstPrice = chartData[0]?.price || 0
-  const syncPriceChange = firstPrice > 0 ? ((currentSimulatedPrice - firstPrice) / firstPrice) * 100 : 0
+  const chartData = useMemo(() => getMarketSeries(timeframe), [timeframe])
+  const snapshot = useMemo(() => getMarketSnapshot(timeframe), [timeframe])
 
-  useEffect(() => {
-    fetchData()
-    setWalletBalance(Math.floor(Math.random() * 50000) + 10000)
-  }, [])
+  const quantity = Number(buyQuantity)
+  const quantityValid = selectedCredit !== null && Number.isInteger(quantity) && quantity > 0 && quantity <= selectedCredit.quantity
+  const totalCost = selectedCredit && quantityValid ? Math.round(quantity * selectedCredit.pricePerUnit * 100) / 100 : 0
 
-  async function fetchData() {
-    try {
-      const [creditsRes, tradesRes] = await Promise.all([
-        fetch("/api/trade"),
-        fetch("/api/trade/history"),
-      ])
-
-      if (creditsRes.ok) setCredits(await creditsRes.json())
-      if (tradesRes.ok) setTrades(await tradesRes.json())
-    } catch (error) {
-      console.error("Failed to fetch trading data:", error)
-    } finally {
-      setLoading(false)
-    }
+  function openBuy(credit: Credit) {
+    setSelectedCredit(credit)
+    setBuyQuantity("")
+    setBuyDialogOpen(true)
   }
 
-  async function handleBuy() {
-    if (!selectedCredit || !buyQuantity) return
-    
-    const quantity = parseInt(buyQuantity)
-    if (isNaN(quantity) || quantity <= 0 || quantity > selectedCredit.quantity) {
-      toast.error("Invalid quantity")
+  function handleBuy() {
+    if (!selectedCredit || !portfolio) return
+    if (!quantityValid) {
+      toast.error(`Enter a whole number between 1 and ${selectedCredit.quantity.toLocaleString()}`)
       return
     }
-    
-    const totalCost = quantity * selectedCredit.pricePerUnit;
-    if (walletBalance !== null && totalCost > walletBalance) {
-      toast.error("Insufficient wallet balance to complete this purchase")
+    if (totalCost > portfolio.wallet) {
+      toast.error("Insufficient wallet balance", { description: `This purchase costs ${formatUsd(totalCost)}. Add funds to continue.` })
       return
     }
-
     setStlPayload({
-      user_id: userId || 'USER-123',
-      txn_id: `TXN-${Math.floor(Math.random() * 1000000)}`,
-      type: 'BUY',
+      user_id: userId,
+      txn_id: `TXN-${Date.now().toString(36).toUpperCase()}`,
+      type: "BUY",
       credits: quantity,
-      amount: quantity * selectedCredit.pricePerUnit,
-      timestamp: new Date().toISOString()
+      amount: totalCost,
+      timestamp: new Date().toISOString(),
     })
-    setShowSTL(true)
     setBuyDialogOpen(false)
   }
 
-  async function handleSTLComplete() {
-    setProcessing(true)
+  async function commitPurchase(integrityHash: string): Promise<CommitResult> {
+    const credit = selectedCredit!
+    const res = await fetch("/api/trade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ creditId: credit.id, quantity, action: "buy", integrityHash, walletBalance: portfolio?.wallet }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Trade failed")
+
+    if (data.simulated) {
+      updateSandbox(s => ({
+        ...s,
+        walletDelta: Math.round((s.walletDelta - data.trade.totalPrice) * 100) / 100,
+        trades: [data.trade, ...s.trades],
+        acquired: data.credit ? [data.credit, ...s.acquired] : s.acquired,
+        consumed: { ...s.consumed, [credit.id]: (s.consumed[credit.id] ?? 0) + quantity },
+      }))
+      recordAction({ action: "TRADE_BUY", entityType: "trade", entityId: data.trade.id, details: { quantity, totalPrice: data.trade.totalPrice, ledgerHash: data.ledger.hash, creditType: credit.type } })
+    } else {
+      await refresh()
+    }
+    toast.success(data.message, { description: `Ledger block ${data.ledger.hash.slice(0, 16)}...` })
+    return { ledgerHash: data.ledger.hash, previousHash: data.ledger.previousHash, nonce: data.ledger.nonce, message: data.message }
+  }
+
+  async function handleListing(credit: Credit, list: boolean) {
+    const message = list
+      ? `Listed ${credit.quantity.toLocaleString()} ${credit.type} credits at ${formatUsd(credit.pricePerUnit)} each`
+      : `Withdrew the ${credit.type} listing from the market`
+    // Credits bought inside the demo sandbox exist only in this browser session.
+    if (sandbox.acquired.some(c => c.id === credit.id)) {
+      updateSandbox(s => ({ ...s, listings: { ...s.listings, [credit.id]: list } }))
+      recordAction({ action: list ? "CREDIT_LISTED" : "LISTING_WITHDRAWN", entityType: "credit", entityId: credit.id, details: { quantity: credit.quantity, pricePerUnit: credit.pricePerUnit } })
+      toast.success(message)
+      return
+    }
+    setListingId(credit.id)
     try {
       const res = await fetch("/api/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creditId: selectedCredit!.id,
-          quantity: parseInt(buyQuantity),
-          action: "buy",
-        }),
+        body: JSON.stringify({ creditId: credit.id, quantity: credit.quantity, action: list ? "list" : "withdraw" }),
       })
-
       const data = await res.json()
-      
       if (!res.ok) {
-        toast.error(data.error || "Trade failed")
+        toast.error(data.error || "Could not update the listing")
         return
       }
-
-      toast.success(data.message || "Trade executed successfully")
-      
-      if (walletBalance !== null) {
-        setWalletBalance(walletBalance - (parseInt(buyQuantity) * selectedCredit!.pricePerUnit))
+      if (data.simulated) {
+        updateSandbox(s => ({ ...s, listings: { ...s.listings, [credit.id]: list } }))
+        recordAction({ action: list ? "CREDIT_LISTED" : "LISTING_WITHDRAWN", entityType: "credit", entityId: credit.id, details: { quantity: credit.quantity, pricePerUnit: credit.pricePerUnit } })
+      } else {
+        await refresh()
       }
-
-      setShowSTL(false)
-      setSelectedCredit(null)
-      setBuyQuantity("")
-      fetchData()
+      toast.success(data.message || message)
     } catch {
-      toast.error("Trade execution failed")
+      toast.error("Could not update the listing")
     } finally {
-      setProcessing(false)
+      setListingId(null)
     }
   }
 
-  const handleListForSale = async (credit: Credit) => {
-    setListingId(credit.id)
-    setTimeout(() => {
-      setListingId(null)
-      toast.success("Successfully listed on the marketplace", {
-        description: `${credit.quantity} ${credit.type} credits are now live.`,
+  async function handleAddFunds() {
+    const amount = Number(addMoneyAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter an amount above zero")
+      return
+    }
+    setAddingFunds(true)
+    try {
+      const res = await fetch("/api/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
       })
-      if (walletBalance !== null) {
-        setWalletBalance(walletBalance + (credit.quantity * credit.pricePerUnit))
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Could not add funds")
+        return
       }
-      if (credits) {
-        setCredits({
-          ...credits,
-          forSale: credits.forSale.filter((c) => c.id !== credit.id),
-        })
+      if (data.simulated) {
+        updateSandbox(s => ({ ...s, walletDelta: Math.round((s.walletDelta + data.amount) * 100) / 100 }))
+        recordAction({ action: "WALLET_TOPUP", entityType: "wallet", entityId: userId, details: { amount: data.amount } })
+      } else {
+        await refresh()
       }
-    }, 1500)
+      toast.success(data.message)
+      setAddMoneyDialogOpen(false)
+      setAddMoneyAmount("")
+    } catch {
+      toast.error("Could not add funds")
+    } finally {
+      setAddingFunds(false)
+    }
   }
 
-  if (loading) {
-    return <TradingSkeleton />
-  }
+  if (isLoading) return <TradingSkeleton />
 
-  if (userRole === "regulator") {
-    return <RegulatorMarketView />
-  }
-
-  const creditTypeColors: Record<string, string> = {
-    renewable: "bg-emerald-500/10 text-emerald-500",
-    forestry: "bg-green-500/10 text-green-500",
-    industrial: "bg-blue-500/10 text-blue-500",
-    agriculture: "bg-amber-500/10 text-amber-500",
+  if (error || !portfolio) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="mb-4 text-muted-foreground">The trading data could not be loaded.</p>
+          <Button onClick={() => refresh()}>Try again</Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Replaced AI Prediction with Carbon Price Graph */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <CarbonPriceChart 
-          data={chartData} 
-          timeframe={timeframe} 
-          onTimeframeChange={setTimeframe} 
-          currentPrice={currentSimulatedPrice}
-          priceChange={syncPriceChange}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <CarbonPriceChart
+          data={chartData}
+          timeframe={timeframe}
+          onTimeframeChange={setTimeframe}
+          currentPrice={snapshot.price}
+          priceChange={snapshot.change}
         />
       </motion.div>
 
-      {/* Wallet Balance Section */}
-      {walletBalance !== null && (
-        <Card className="bg-gradient-to-br from-emerald-950/30 to-background border-emerald-500/20">
-          <CardContent className="p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
-                <Wallet className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-emerald-500 uppercase tracking-wider">Available Balance</p>
-                <p className="text-3xl font-bold text-foreground">${walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              </div>
+      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-card dark:from-emerald-950/40">
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-6">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl bg-emerald-500/15 p-3 text-emerald-600 dark:text-emerald-400">
+              <Wallet className="h-6 w-6" />
             </div>
-            <Button onClick={() => setAddMoneyDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-              <Plus className="h-4 w-4" /> Add Funds
-            </Button>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Available balance</p>
+              <p className="text-3xl font-bold text-foreground">{formatUsd(portfolio.wallet)}</p>
+              <p className="text-xs text-muted-foreground">{portfolio.holdings.toLocaleString()} credits held · market price {formatUsd(snapshot.price)}</p>
+            </div>
+          </div>
+          <Button onClick={() => setAddMoneyDialogOpen(true)} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
+            <Plus className="h-4 w-4" /> Add funds
+          </Button>
+        </CardContent>
+      </Card>
+
+      {portfolio.isDemo && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Recruiter demo sandbox</AlertTitle>
+          <AlertDescription>
+            Every action runs through the real API checks and hashing. Results are kept in this browser tab only, so the shared demo data stays clean for the next visitor.
+          </AlertDescription>
+        </Alert>
       )}
 
-      <Tabs defaultValue="buy" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="buy" className="flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4" />
-            Buy
-          </TabsTrigger>
-          <TabsTrigger value="sell" className="flex items-center gap-2">
-            <Tag className="h-4 w-4" />
-            Sell
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <ArrowRightLeft className="h-4 w-4" />
-            History
-          </TabsTrigger>
+          <TabsTrigger value="buy" className="flex items-center gap-2"><ShoppingCart className="h-4 w-4" />Buy</TabsTrigger>
+          <TabsTrigger value="sell" className="flex items-center gap-2"><Tag className="h-4 w-4" />Sell</TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2"><ArrowRightLeft className="h-4 w-4" />History</TabsTrigger>
         </TabsList>
 
-        {/* Buy Tab */}
         <TabsContent value="buy">
           <Card>
             <CardHeader>
-              <CardTitle>Available Carbon Credits</CardTitle>
-              <CardDescription>Browse and purchase verified carbon credits</CardDescription>
+              <CardTitle>Available carbon credits</CardTitle>
+              <CardDescription>Listings from other companies, priced around the current market of {formatUsd(snapshot.price)}</CardDescription>
             </CardHeader>
             <CardContent>
-              {credits?.forPurchase && credits.forPurchase.length > 0 ? (
+              {portfolio.forPurchase.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -299,54 +275,39 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {credits.forPurchase.map((credit) => (
+                    {portfolio.forPurchase.map((credit) => (
                       <TableRow key={credit.id}>
-                        <TableCell>
-                          <Badge className={creditTypeColors[credit.type] || "bg-secondary"}>
-                            {credit.type}
-                          </Badge>
-                        </TableCell>
+                        <TableCell><Badge className={creditTypeColors[credit.type] || "bg-secondary"}>{credit.type}</Badge></TableCell>
                         <TableCell>{credit.vintageYear}</TableCell>
                         <TableCell>{credit.quantity.toLocaleString()}</TableCell>
-                        <TableCell className="font-medium">${credit.pricePerUnit.toFixed(2)}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{credit.certificationBody}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {new Date(credit.expiryDate).toLocaleDateString()}
-                        </TableCell>
+                        <TableCell className="font-medium">{formatUsd(credit.pricePerUnit)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{credit.certificationBody}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{new Date(credit.expiryDate).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedCredit(credit)
-                              setBuyDialogOpen(true)
-                            }}
-                          >
-                            Buy
-                          </Button>
+                          <Button size="sm" onClick={() => openBuy(credit)}>Buy</Button>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Leaf className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No credits available for purchase</p>
+                <div className="py-8 text-center text-muted-foreground">
+                  <Leaf className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                  <p>No credits are listed for sale right now</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Sell Tab */}
         <TabsContent value="sell">
           <Card>
             <CardHeader>
-              <CardTitle>Your Carbon Credits</CardTitle>
-              <CardDescription>List your credits for sale on the marketplace</CardDescription>
+              <CardTitle>Your carbon credits</CardTitle>
+              <CardDescription>List a holding on the marketplace or withdraw an active listing</CardDescription>
             </CardHeader>
             <CardContent>
-              {credits?.forSale && credits.forSale.length > 0 ? (
+              {portfolio.owned.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -355,29 +316,33 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
                       <TableHead>Quantity</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Certification</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {credits.forSale.map((credit) => (
+                    {portfolio.owned.map((credit) => (
                       <TableRow key={credit.id}>
-                        <TableCell>
-                          <Badge className={creditTypeColors[credit.type] || "bg-secondary"}>
-                            {credit.type}
-                          </Badge>
-                        </TableCell>
+                        <TableCell><Badge className={creditTypeColors[credit.type] || "bg-secondary"}>{credit.type}</Badge></TableCell>
                         <TableCell>{credit.vintageYear}</TableCell>
                         <TableCell>{credit.quantity.toLocaleString()}</TableCell>
-                        <TableCell className="font-medium">${credit.pricePerUnit.toFixed(2)}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{credit.certificationBody}</TableCell>
+                        <TableCell className="font-medium">{formatUsd(credit.pricePerUnit)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{credit.certificationBody}</TableCell>
+                        <TableCell>
+                          {credit.listed ? (
+                            <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400">Listed</Badge>
+                          ) : (
+                            <Badge variant="secondary">Held</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             disabled={listingId === credit.id}
-                            onClick={() => handleListForSale(credit)}
+                            onClick={() => handleListing(credit, !credit.listed)}
                           >
-                            {listingId === credit.id ? "Listing..." : "List for Sale"}
+                            {listingId === credit.id ? "Updating..." : credit.listed ? "Withdraw" : "List for sale"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -385,29 +350,26 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Tag className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>You don't have any credits to sell</p>
+                <div className="py-8 text-center text-muted-foreground">
+                  <Tag className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                  <p className="mb-4">You do not hold any credits yet</p>
+                  <Button variant="outline" onClick={() => setActiveTab("buy")}>Browse the market</Button>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* History Tab */}
         <TabsContent value="history">
           <div className="space-y-4">
-            {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-lg bg-emerald-500/10">
-                      <TrendingUp className="h-6 w-6 text-emerald-500" />
-                    </div>
+                    <div className="rounded-lg bg-emerald-500/10 p-3"><TrendingUp className="h-6 w-6 text-emerald-600 dark:text-emerald-400" /></div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Bought</p>
-                      <p className="text-2xl font-semibold">${trades?.summary?.totalBought?.toLocaleString() || 0}</p>
+                      <p className="text-sm text-muted-foreground">Total bought</p>
+                      <p className="text-2xl font-semibold">{formatUsd(portfolio.summary.totalBought)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -415,12 +377,10 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-lg bg-blue-500/10">
-                      <Tag className="h-6 w-6 text-blue-500" />
-                    </div>
+                    <div className="rounded-lg bg-blue-500/10 p-3"><Tag className="h-6 w-6 text-blue-600 dark:text-blue-400" /></div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Sold</p>
-                      <p className="text-2xl font-semibold">${trades?.summary?.totalSold?.toLocaleString() || 0}</p>
+                      <p className="text-sm text-muted-foreground">Total sold</p>
+                      <p className="text-2xl font-semibold">{formatUsd(portfolio.summary.totalSold)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -429,11 +389,11 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
 
             <Card>
               <CardHeader>
-                <CardTitle>Trade History</CardTitle>
-                <CardDescription>All your completed and pending trades</CardDescription>
+                <CardTitle>Trade history</CardTitle>
+                <CardDescription>Completed trades with their ledger hash</CardDescription>
               </CardHeader>
               <CardContent>
-                {trades?.trades && trades.trades.length > 0 ? (
+                {portfolio.trades.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -448,55 +408,36 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {trades.trades.slice(0, 20).map((trade) => (
+                      {portfolio.trades.slice(0, 25).map((trade) => (
                         <TableRow key={trade.id}>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(trade.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={trade.isUserBuyer ? "default" : "outline"}>
-                              {trade.isUserBuyer ? "Buy" : "Sell"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {trade.isUserBuyer ? trade.sellerName : trade.buyerName}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground">{new Date(trade.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell><Badge variant={trade.isUserBuyer ? "default" : "outline"}>{trade.isUserBuyer ? "Buy" : "Sell"}</Badge></TableCell>
+                          <TableCell>{trade.isUserBuyer ? trade.sellerName : trade.buyerName}</TableCell>
                           <TableCell>{trade.quantity}</TableCell>
-                          <TableCell>${trade.pricePerUnit.toFixed(2)}</TableCell>
-                          <TableCell className="font-medium">${trade.totalPrice.toFixed(2)}</TableCell>
+                          <TableCell>{formatUsd(trade.pricePerUnit)}</TableCell>
+                          <TableCell className="font-medium">{formatUsd(trade.totalPrice)}</TableCell>
                           <TableCell>
                             {trade.status === "completed" ? (
-                              <div className="flex items-center gap-1 text-emerald-500">
-                                <CheckCircle2 className="h-4 w-4" />
-                                <span className="text-sm">Completed</span>
-                              </div>
+                              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" /><span className="text-sm">Completed</span></span>
                             ) : trade.status === "pending" ? (
-                              <div className="flex items-center gap-1 text-amber-500">
-                                <Clock className="h-4 w-4" />
-                                <span className="text-sm">Pending</span>
-                              </div>
+                              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" /><span className="text-sm">Pending</span></span>
                             ) : (
-                              <div className="flex items-center gap-1 text-red-500">
-                                <XCircle className="h-4 w-4" />
-                                <span className="text-sm">{trade.status}</span>
-                              </div>
+                              <span className="flex items-center gap-1 text-red-600 dark:text-red-400"><XCircle className="h-4 w-4" /><span className="text-sm capitalize">{trade.status}</span></span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {trade.status === "completed" && (
-                              <Button variant="outline" size="sm" onClick={() => setReceiptTrade(trade)}>
-                                <Download className="h-4 w-4 mr-2" /> Receipt
-                              </Button>
-                            )}
+                            <Button variant="outline" size="sm" onClick={() => setReceiptTrade(trade)}>
+                              <FileText className="mr-2 h-4 w-4" /> Receipt
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No trade history yet</p>
+                  <div className="py-8 text-center text-muted-foreground">
+                    <ArrowRightLeft className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                    <p>No trades yet</p>
                   </div>
                 )}
               </CardContent>
@@ -505,188 +446,144 @@ export function TradingContent({ userId, userRole }: TradingContentProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Buy Dialog */}
+      {/* Buy dialog */}
       <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Buy Carbon Credits</DialogTitle>
-            <DialogDescription>
-              Purchase {selectedCredit?.type} credits from the marketplace
-            </DialogDescription>
+            <DialogTitle>Buy carbon credits</DialogTitle>
+            <DialogDescription>Purchase {selectedCredit?.type} credits from the marketplace</DialogDescription>
           </DialogHeader>
-          
+
           {selectedCredit && (
             <div className="space-y-4">
               <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>STAVP Secured</AlertTitle>
+                <ShieldCheck className="h-4 w-4" />
+                <AlertTitle>STL C³T and STAVP secured</AlertTitle>
                 <AlertDescription>
-                  This transaction is secured by the Secure Trade Authorization & Verification Protocol with hash-chain verification.
+                  The order is encrypted with AES 256 GCM and hashed with SHA 256 in your browser, then checked by the STAVP escrow and chained to the ledger.
                 </AlertDescription>
               </Alert>
 
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Credit Type</span>
-                  <Badge className={creditTypeColors[selectedCredit.type]}>
-                    {selectedCredit.type}
-                  </Badge>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Available</span>
-                  <span>{selectedCredit.quantity.toLocaleString()} credits</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Price per unit</span>
-                  <span className="font-medium">${selectedCredit.pricePerUnit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Certification</span>
-                  <span>{selectedCredit.certificationBody}</span>
-                </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Credit type</span><Badge className={creditTypeColors[selectedCredit.type]}>{selectedCredit.type}</Badge></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Available</span><span>{selectedCredit.quantity.toLocaleString()} credits</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Price per unit</span><span className="font-medium">{formatUsd(selectedCredit.pricePerUnit)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Certification</span><span>{selectedCredit.certificationBody}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Wallet balance</span><span>{formatUsd(portfolio.wallet)}</span></div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Quantity to Purchase</label>
+                <label htmlFor="buy-quantity" className="text-sm font-medium">Quantity to purchase</label>
                 <Input
+                  id="buy-quantity"
                   type="number"
-                  placeholder="Enter quantity"
+                  inputMode="numeric"
+                  placeholder={`1 to ${selectedCredit.quantity}`}
                   value={buyQuantity}
                   onChange={(e) => setBuyQuantity(e.target.value)}
                   max={selectedCredit.quantity}
                   min={1}
+                  step={1}
                 />
                 {buyQuantity && (
-                  <p className="text-sm text-muted-foreground">
-                    Total: <span className="font-medium text-foreground">
-                      ${(parseInt(buyQuantity) * selectedCredit.pricePerUnit).toFixed(2)}
-                    </span>
-                  </p>
+                  quantityValid ? (
+                    <p className={`text-sm ${totalCost > portfolio.wallet ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                      Total: <span className="font-medium text-foreground">{formatUsd(totalCost)}</span>
+                      {totalCost > portfolio.wallet && " · exceeds your wallet balance"}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-red-600 dark:text-red-400">Enter a whole number between 1 and {selectedCredit.quantity.toLocaleString()}</p>
+                  )
                 )}
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBuyDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleBuy} disabled={!buyQuantity} className="bg-blue-600 hover:bg-blue-700">
-              🔐 Launch Secure Purchase (STL-C³T)
+            <Button variant="outline" onClick={() => setBuyDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBuy} disabled={!quantityValid || totalCost > portfolio.wallet} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+              <Lock className="h-4 w-4" /> Confirm secure purchase
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* STL-C³T Animated UI Overlay */}
-      {showSTL && stlPayload && (
-        <SecureTransactionLayer 
+      {stlPayload && (
+        <SecureTransactionLayer
           payload={stlPayload}
-          onComplete={handleSTLComplete}
-          onCancel={() => setShowSTL(false)}
+          commit={commitPurchase}
+          onComplete={() => { setStlPayload(null); setSelectedCredit(null); setBuyQuantity(""); setActiveTab("history") }}
+          onCancel={() => setStlPayload(null)}
         />
       )}
 
-      {/* Add Money Dialog */}
+      {/* Add funds dialog */}
       <Dialog open={addMoneyDialogOpen} onOpenChange={setAddMoneyDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Funds to Wallet</DialogTitle>
-            <DialogDescription>
-              Enter the amount in USD you want to add to your trading balance.
-            </DialogDescription>
+            <DialogTitle>Add funds to wallet</DialogTitle>
+            <DialogDescription>Enter the amount in USD to add to your trading balance.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount (USD)</label>
-              <Input
-                type="number"
-                placeholder="e.g. 10000"
-                value={addMoneyAmount}
-                onChange={(e) => setAddMoneyAmount(e.target.value)}
-                min={1}
-              />
-            </div>
+          <div className="space-y-2 py-4">
+            <label htmlFor="add-funds" className="text-sm font-medium">Amount (USD)</label>
+            <Input id="add-funds" type="number" placeholder="10000" value={addMoneyAmount} onChange={(e) => setAddMoneyAmount(e.target.value)} min={1} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddMoneyDialogOpen(false)}>Cancel</Button>
-            <Button 
-              onClick={() => {
-                const amount = parseFloat(addMoneyAmount);
-                if (!isNaN(amount) && amount > 0) {
-                  setWalletBalance((prev) => (prev || 0) + amount);
-                  setAddMoneyDialogOpen(false);
-                  setAddMoneyAmount("");
-                  toast.success(`Successfully added $${amount.toLocaleString()} to your wallet`);
-                } else {
-                  toast.error("Please enter a valid amount");
-                }
-              }} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Confirm
+            <Button onClick={handleAddFunds} disabled={addingFunds} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              {addingFunds ? "Adding..." : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Modal */}
+      {/* Receipt */}
       <Dialog open={!!receiptTrade} onOpenChange={(open: boolean) => !open && setReceiptTrade(null)}>
-        <DialogContent className="sm:max-w-md bg-white text-black p-0 overflow-y-auto border-none shadow-2xl">
-          <div className="bg-gray-100 px-6 py-4 flex justify-between items-center border-b border-gray-200 no-print">
-            <DialogTitle className="text-black">Transaction Receipt</DialogTitle>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
+        <DialogContent className="overflow-y-auto border-none bg-white p-0 text-zinc-900 shadow-2xl sm:max-w-md">
+          <div className="no-print flex items-center justify-between border-b border-zinc-200 bg-zinc-100 px-6 py-4">
+            <DialogTitle className="text-zinc-900">Transaction receipt</DialogTitle>
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2 border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50">
               <Printer className="h-4 w-4" /> Print
             </Button>
           </div>
-          
+          <DialogDescription className="sr-only">Receipt for trade {receiptTrade?.id}</DialogDescription>
+
           {receiptTrade && (
-            <div className="p-8 space-y-6 relative print-document">
-              <div className="text-center border-b-2 border-gray-800 pb-4">
-                <h3 className="text-xl font-bold uppercase tracking-wider">Carbon Exchange Receipt</h3>
-                <p className="text-sm text-gray-600 font-medium">{new Date(receiptTrade.createdAt).toLocaleString()}</p>
+            <div className="print-document relative space-y-6 p-8">
+              <div className="border-b-2 border-zinc-800 pb-4 text-center">
+                <h3 className="text-xl font-bold uppercase tracking-wider">CarbonEx trade receipt</h3>
+                <p className="text-sm font-medium text-zinc-600">{new Date(receiptTrade.createdAt).toLocaleString()}</p>
               </div>
 
               <div className="space-y-4 text-sm font-medium">
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600 uppercase">Transaction ID</span>
-                  <span className="font-mono text-xs">{receiptTrade.id}</span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600 uppercase">Type</span>
-                  <span className="font-bold text-base">{receiptTrade.isUserBuyer ? "PURCHASE" : "SALE"}</span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600 uppercase">Counterparty</span>
-                  <span>{receiptTrade.isUserBuyer ? receiptTrade.sellerName : receiptTrade.buyerName}</span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600 uppercase">Quantity</span>
-                  <span>{receiptTrade.quantity} Credits</span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200 pb-2">
-                  <span className="text-gray-600 uppercase">Price Per Unit</span>
-                  <span>${receiptTrade.pricePerUnit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between pt-2 text-lg font-bold">
-                  <span className="uppercase">Total Amount</span>
-                  <span>${receiptTrade.totalPrice.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Verified Stamp */}
-              <div className="mt-8 flex justify-end">
-                <div className="transform rotate-[-15deg] right-4 relative">
-                  <div className="border-4 border-red-700 rounded-full w-28 h-28 flex items-center justify-center p-1 bg-white opacity-90">
-                    <div className="border-2 border-red-700 rounded-full w-full h-full flex flex-col items-center justify-center text-red-700">
-                      <Shield className="w-5 h-5 mb-1" />
-                      <span className="font-bold tracking-widest uppercase text-[10px]">Verified</span>
-                      <span className="text-[8px] uppercase font-bold mt-1 text-center">Govt. Of India<br/>BEE</span>
-                    </div>
+                {[
+                  ["Transaction ID", <span key="id" className="font-mono text-xs">{receiptTrade.id}</span>],
+                  ["Type", <span key="t" className="text-base font-bold">{receiptTrade.isUserBuyer ? "PURCHASE" : "SALE"}</span>],
+                  ["Counterparty", receiptTrade.isUserBuyer ? receiptTrade.sellerName : receiptTrade.buyerName],
+                  ["Quantity", `${receiptTrade.quantity} credits`],
+                  ["Price per unit", formatUsd(receiptTrade.pricePerUnit)],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="flex justify-between gap-4 border-b border-zinc-200 pb-2">
+                    <span className="uppercase text-zinc-600">{label}</span>
+                    <span className="text-right">{value}</span>
                   </div>
+                ))}
+                <div className="flex justify-between pt-2 text-lg font-bold">
+                  <span className="uppercase">Total amount</span>
+                  <span>{formatUsd(receiptTrade.totalPrice)}</span>
                 </div>
               </div>
 
+              <div className="rounded-md border border-emerald-700/40 bg-emerald-50 p-3">
+                <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800">
+                  <ShieldCheck className="h-4 w-4" /> CarbonEx ledger record
+                </div>
+                <p className="break-all font-mono text-[11px] text-emerald-900">{receiptTrade.ledgerHash}</p>
+              </div>
+
+              <p className="text-center text-[11px] italic text-zinc-500">
+                Generated by the CarbonEx research prototype from synthetic data. Not a financial or regulatory document.
+              </p>
             </div>
           )}
         </DialogContent>
@@ -699,7 +596,8 @@ function TradingSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-64 rounded-xl" />
-      <Skeleton className="h-10 w-96" />
+      <Skeleton className="h-24 rounded-xl" />
+      <Skeleton className="h-10 w-96 max-w-full" />
       <Skeleton className="h-96 rounded-xl" />
     </div>
   )

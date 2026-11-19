@@ -18,7 +18,7 @@ export async function GET() {
       : 75
 
     // Simulate market conditions
-    const demand = 100 + (stats.price_change_24h * 5) + Math.random() * 20
+    const demand = 110 + (stats.price_change_24h * 5)
     const supply = stats.total_supply / 10
     const volatility = Math.abs(stats.price_change_24h) / 20
 
@@ -42,7 +42,7 @@ export async function GET() {
       modelInfo: {
         accuracy: MODEL_STATS.rSquared * 100,
         trainingDataPoints: MODEL_STATS.trainingDataPoints,
-        lastUpdated: '2026-03-15',
+        lastUpdated: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       },
     })
   } catch (error) {

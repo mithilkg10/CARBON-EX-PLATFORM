@@ -12,6 +12,7 @@ export interface User {
   is_blocked?: boolean
   is_demo?: boolean
   requires_password_setup?: boolean
+  wallet_balance?: number
   created_at: string
   updated_at: string
 }
@@ -60,6 +61,7 @@ export interface CarbonCredit {
   price_per_unit: number
   expiry_date: string
   status: 'available' | 'locked' | 'retired' | 'expired'
+  listed: boolean
   certification_body: string
   created_at: string
 }
@@ -107,7 +109,29 @@ export interface AuditLog {
   resource_id: string
   details: string
   ip_address?: string
+  status?: 'success' | 'pending' | 'failed'
   created_at: string
+}
+
+export interface ReviewItem {
+  id: string
+  company: string
+  type: 'Emission Report' | 'Credit Transfer' | 'Offset Verification' | 'Compliance Audit'
+  submitted: string
+  status: 'pending' | 'in-review' | 'approved' | 'rejected'
+  risk: 'low' | 'medium' | 'high'
+}
+
+export interface FlaggedEntity {
+  id: string
+  company: string
+  reason: string
+  severity: 'critical' | 'warning'
+  flaggedAt: string
+  trustScore: number
+  tradesLast30d: number
+  volumeLast30d: number
+  suspended: boolean
 }
 
 // API Response types

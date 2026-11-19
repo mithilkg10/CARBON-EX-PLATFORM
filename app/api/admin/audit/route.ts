@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import { getLedgerStats } from '@/lib/ledger/stavp'
-import crypto from 'crypto'
+import { sha256Hex } from '@/lib/db'
 
 export async function GET() {
   try {
@@ -18,8 +18,8 @@ export async function GET() {
       )
     }
 
-    // Get audit logs
-    const auditLogs = await db.getAuditLogs(100)
+    // Audit logs come back oldest first so the SHA-256 chain is built in order.
+    const auditLogs = await db.getAuditLogs(200)
 
     // Get all users for mapping
     const users = await db.getAllUsers()
@@ -27,10 +27,10 @@ export async function GET() {
 
     // Format logs into the shape expected by audit-content.tsx:
     // needs: id, timestamp, action, status, entityType, entityId, userId, hash, previousHash, metadata
-    let previousHash = '0000000000000000'
+    let previousHash = '0'.repeat(64)
     const logs = auditLogs.map((log) => {
-      const hashInput = `${log.id}${log.action}${log.created_at}${previousHash}`
-      const hash = crypto.createHash('sha256').update(hashInput).digest('hex')
+      const hashInput = `${previousHash}|${log.id}|${log.action}|${log.created_at}|${log.details}`
+      const hash = sha256Hex(hashInput)
       const prev = previousHash
       previousHash = hash
 
@@ -38,10 +38,10 @@ export async function GET() {
         id: log.id,
         timestamp: log.created_at,
         action: log.action.toUpperCase().replace(/ /g, '_'),
-        status: 'success',
+        status: log.status || 'success',
         entityType: log.resource_type || 'system',
         entityId: log.resource_id || log.id,
-        userId: userMap.get(log.user_id)?.email || log.user_id,
+        userId: log.user_id === 'system' ? 'system' : userMap.get(log.user_id)?.email || log.user_id,
         hash,
         previousHash: prev,
         metadata: log.details
@@ -64,6 +64,8 @@ export async function GET() {
       timestamp: entry.timestamp,
       verified: entry.verified,
     }))
+
+    logs.reverse()
 
     return NextResponse.json({
       logs,

@@ -1,14 +1,15 @@
 /**
  * C³T Cipher Engine
- * Custom obfuscation layer with seed-based mapping, position shift,
- * chunk scrambling, and noise injection.
+ * Custom obfuscation layer with seed based mapping, position shift, chunk scrambling
+ * and noise injection. It is an obfuscation step that runs before AES GCM encryption;
+ * confidentiality and integrity come from AES GCM and SHA 256 (Web Crypto API).
  */
 
 export class C3TCipher {
   private static readonly NOISE_CHARS = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
 
   /**
-   * Encrypts the input string using the C³T algorithm
+   * Obfuscates the input string using the C³T algorithm
    */
   static obfuscate(data: string, seed: number): string {
     // 1. Dynamic mapping based on seed
@@ -44,7 +45,10 @@ export class C3TCipher {
       }
     }
 
-    return Buffer.from(noisy).toString('base64');
+    const bytes = new TextEncoder().encode(noisy);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return btoa(binary);
   }
 
   static generateSeed(userId: string, txnId: string): number {

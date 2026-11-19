@@ -1,98 +1,83 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { db } from '@/lib/db'
+import { getMarketSeries, getMarketSnapshot } from '@/lib/market/engine'
+
+// Network wide registry baseline used for the synthetic market (companies outside the demo dataset).
+const INDUSTRY_BASELINE: Record<string, { entities: number; compliant: number }> = {
+  Energy: { entities: 312, compliant: 263 },
+  Manufacturing: { entities: 486, compliant: 351 },
+  Transport: { entities: 204, compliant: 139 },
+  Agriculture: { entities: 158, compliant: 143 },
+  Mining: { entities: 97, compliant: 63 },
+  Technology: { entities: 221, compliant: 196 },
+}
 
 export async function GET() {
   try {
     const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.role !== 'regulator' && session.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Access denied. Admin or regulator role required.' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Access denied. Admin or regulator role required.' }, { status: 403 })
     }
 
     const passports = await db.getAllPassports()
-    const users = await db.getAllUsers()
-    const emissions = await db.getAllEmissions()
+    const reviews = await db.getReviews()
+    const flagged = await db.getFlagged()
+    const listed = (await db.getAvailableCredits()).filter(c => c.listed)
 
-    // 1. Dynamic "Compliance by Industry" data
-    // We aggregate actual data from passports, then add a slight random fluctuation 
-    // to simulate live market data "changing" as requested.
-    const targetIndustries = ["Energy", "Manufacturing", "Transport", "Agriculture", "Mining", "Technology"]
-    
-    const complianceByIndustry = targetIndustries.map(industry => {
-      const industryPassports = passports.filter(p => p.industry_sector === industry)
-      let compliant = 0;
-      let total = industryPassports.length;
-      
-      if (total > 0) {
-        compliant = industryPassports.filter(p => p.compliance_status === 'compliant').length
-      } else {
-        // Fallback for demo purposes if no passports exist for this industry
-        compliant = Math.floor(Math.random() * 40) + 40;
-        total = 100;
-      }
-      
-      const baseCompliantPercent = Math.round((compliant / total) * 100);
-      
-      // Fluctuation to make the graph dynamic (-3% to +3%)
-      const fluctuation = Math.floor(Math.random() * 7) - 3;
-      const finalCompliant = Math.min(100, Math.max(0, baseCompliantPercent + fluctuation));
-      
-      return {
-        industry,
-        compliant: finalCompliant,
-        nonCompliant: 100 - finalCompliant
-      }
+    let totalEntities = 0
+    let totalCompliant = 0
+    const complianceByIndustry = Object.entries(INDUSTRY_BASELINE).map(([industry, base]) => {
+      const local = passports.filter(p => p.industry_sector === industry)
+      const entities = base.entities + local.length
+      const compliant = base.compliant + local.filter(p => p.compliance_status === 'compliant').length
+      totalEntities += entities
+      totalCompliant += compliant
+      const pct = Math.round((compliant / entities) * 1000) / 10
+      return { industry, compliant: pct, nonCompliant: Math.round((100 - pct) * 10) / 10, entities }
     })
 
-    // 2. Alert Distribution (dynamic simulation)
+    const openReviews = reviews.filter(r => r.status === 'pending' || r.status === 'in-review')
+    const activeFlags = flagged.filter(f => !f.suspended)
+    const critical = activeFlags.filter(f => f.severity === 'critical').length + openReviews.filter(r => r.risk === 'high').length
+    const warning = activeFlags.filter(f => f.severity === 'warning').length + openReviews.filter(r => r.risk === 'medium').length
+    const info = openReviews.filter(r => r.risk === 'low').length
+
     const alertDistribution = [
-      { name: "Critical", value: Math.floor(Math.random() * 5) + 5, color: "#ef4444" },
-      { name: "Warning", value: Math.floor(Math.random() * 15) + 20, color: "#f59e0b" },
-      { name: "Info", value: Math.floor(Math.random() * 30) + 100, color: "#3b82f6" },
+      { name: 'Critical', value: critical, color: '#ef4444' },
+      { name: 'Warning', value: warning, color: '#f59e0b' },
+      { name: 'Info', value: info, color: '#3b82f6' },
     ]
 
-    // 3. Market Health Indicators (dynamic simulation)
-    const marketHealth = {
-      liquidity: Math.floor(Math.random() * 15) + 75, // 75-90
-      stability: Math.floor(Math.random() * 20) + 55, // 55-75
-      fraudDetection: Math.floor(Math.random() * 10) + 85 // 85-95
-    }
+    // Market health from the shared market engine.
+    const week = getMarketSeries('1W').map(p => p.price)
+    const mean = week.reduce((a, b) => a + b, 0) / week.length
+    const sd = Math.sqrt(week.reduce((a, b) => a + (b - mean) ** 2, 0) / week.length)
+    const stability = Math.max(0, Math.min(100, Math.round(100 - (sd / mean) * 1000)))
+    const traded24h = getMarketSnapshot('1D').periodCredits
+    const supply = listed.reduce((sum, c) => sum + c.quantity, 0)
+    const liquidity = Math.max(0, Math.min(100, Math.round((traded24h / (traded24h + supply)) * 100 + 40)))
+    const fraudDetection = Math.round(100 - (activeFlags.length / Math.max(1, flagged.length + 40)) * 100)
 
-    // 4. Top Stats Dashboard Values
-    // Add some simulated growth/variation so numbers keep moving
-    const totalEntities = users.length * 100 + Math.floor(Math.random() * 50) 
-    const pendingReviewsCount = emissions.filter(e => e.verification_status === 'pending').length + Math.floor(Math.random() * 10)
-    
-    // Overall compliance rate
-    const compliantPassports = passports.filter(p => p.compliance_status === 'compliant').length
-    const baseComplianceRate = passports.length > 0 ? (compliantPassports / passports.length) * 100 : 78.3
-    const dynamicComplianceRate = (baseComplianceRate + (Math.random() * 2 - 1)).toFixed(1)
-
-    const activeAlerts = alertDistribution.reduce((sum, a) => sum + a.value, 0)
+    const label = (v: number) => (v >= 75 ? 'High' : v >= 50 ? 'Moderate' : 'Low')
 
     return NextResponse.json({
       complianceByIndustry,
       alertDistribution,
-      marketHealth,
+      marketHealth: {
+        liquidity, stability, fraudDetection,
+        labels: { liquidity: label(liquidity), stability: label(stability), fraudDetection: fraudDetection >= 85 ? 'Optimal' : label(fraudDetection) },
+      },
       stats: {
-        totalEntities: totalEntities.toLocaleString(),
-        pendingReviews: pendingReviewsCount.toString(),
-        complianceRate: `${dynamicComplianceRate}%`,
-        activeAlerts: activeAlerts.toString()
-      }
+        totalEntities: totalEntities.toLocaleString('en-US'),
+        pendingReviews: String(openReviews.length),
+        complianceRate: `${((totalCompliant / totalEntities) * 100).toFixed(1)}%`,
+        activeAlerts: String(critical + warning + info),
+      },
     })
   } catch (error) {
     console.error('Regulator stats error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch regulator stats' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch regulator stats' }, { status: 500 })
   }
 }

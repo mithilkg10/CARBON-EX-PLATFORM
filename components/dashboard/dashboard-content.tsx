@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { CarbonPriceChart, TradingVolumeChart } from "./market-charts"
-import { generateMarketData, type Timeframe } from "@/lib/utils/market-data"
+import { getMarketSeries, getMarketSnapshot, formatUsd, type Timeframe } from "@/lib/market/engine"
+import { usePortfolio } from "@/hooks/use-portfolio"
 
 interface DashboardContentProps {
   userId: string
@@ -26,59 +27,47 @@ interface DashboardContentProps {
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export function DashboardContent({ userId, userRole }: DashboardContentProps) {
+  void userId
+  void userRole
   const [timeframe, setTimeframe] = useState<Timeframe>("30D")
 
-  // Generate the realistic fake dataset depending on the selected timeframe
-  const chartData = useMemo(() => generateMarketData(timeframe), [timeframe])
+  // Price and volume come from the shared market engine, the same series the trading console uses.
+  const chartData = useMemo(() => getMarketSeries(timeframe), [timeframe])
+  const snapshot = useMemo(() => getMarketSnapshot(timeframe), [timeframe])
 
-  // Get dynamic KPIs from the very latest data point simulated
-  const currentSimulatedPrice = chartData[chartData.length - 1]?.price || 0
-  const firstPrice = chartData[0]?.price || 0
-  const syncPriceChange = firstPrice > 0 ? ((currentSimulatedPrice - firstPrice) / firstPrice) * 100 : 0
-  
-  const currentSimulatedVolume = chartData.reduce((acc, point) => acc + point.volume, 0) // rough estimation for timeframe volume
+  const { portfolio, isLoading: portfolioLoading } = usePortfolio()
+  const { data: marketData, isLoading: marketLoading } = useSWR("/api/market/stats", fetcher, { refreshInterval: 30000 })
+  const { data: passportData, isLoading: passportLoading } = useSWR("/api/passport", fetcher, { refreshInterval: 30000 })
 
-  // Poll real-time data using SWR to automatically update when user buys/sells
-  const { data: marketData, isLoading: marketLoading } = useSWR("/api/market/stats", fetcher, { 
-    refreshInterval: 3000,
-    revalidateOnFocus: true
-  })
-  
-  const { data: passportData, isLoading: passportLoading } = useSWR("/api/passport", fetcher, {
-    refreshInterval: 3000,
-    revalidateOnFocus: true
-  })
-
-  // We combine standard SWR loading states
-  if (marketLoading || passportLoading) {
+  if (marketLoading || passportLoading || portfolioLoading) {
     return <DashboardSkeleton />
   }
 
-  // Use dynamic price from the graph or fallback to marketData
-  const displayPrice = currentSimulatedPrice || marketData?.market?.current_price || 0
-  const displayVolume = currentSimulatedVolume || marketData?.market?.volume_24h || 0
+  const periodLabel = timeframe === "1D" ? "24h" : timeframe === "1W" ? "7 day" : timeframe === "15D" ? "15 day" : "30 day"
 
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatsCard
-          title="Carbon Price"
-          value={`$${displayPrice.toFixed(2)}`}
-          change={syncPriceChange}
-          changeLabel={`over ${timeframe}`}
+          title="Carbon price"
+          value={formatUsd(snapshot.price)}
+          change={snapshot.change}
+          changeLabel={`over ${periodLabel}`}
           icon={TrendingUp}
           iconColor="text-emerald-500"
         />
         <StatsCard
-          title="Your Credits"
-          value={marketData?.credits?.total?.toLocaleString() || "0"}
+          title="Your credits"
+          value={(portfolio?.holdings ?? 0).toLocaleString()}
+          changeLabel={portfolio ? `Wallet ${formatUsd(portfolio.wallet)}` : undefined}
           icon={Leaf}
           iconColor="text-primary"
         />
         <StatsCard
-          title={`${timeframe === '1D' ? '24h' : timeframe} Volume`}
-          value={`$${displayVolume.toLocaleString()}`}
+          title={`${periodLabel} market volume`}
+          value={formatUsd(snapshot.periodVolume, 0)}
+          changeLabel={`${snapshot.periodCredits.toLocaleString()} credits traded`}
           icon={Activity}
           iconColor="text-amber-500"
         />
@@ -90,8 +79,8 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
           data={chartData} 
           timeframe={timeframe} 
           onTimeframeChange={setTimeframe} 
-          currentPrice={displayPrice}
-          priceChange={syncPriceChange}
+          currentPrice={snapshot.price}
+          priceChange={snapshot.change}
         />
         <TradingVolumeChart 
           data={chartData} 
@@ -105,7 +94,7 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
+            <CardTitle className="text-lg">Quick actions</CardTitle>
             <CardDescription>Common tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -153,17 +142,24 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
                   <span className="text-sm text-muted-foreground">Status</span>
                   <Badge 
                     variant={passportData.passport.complianceStatus === 'compliant' ? 'default' : 'secondary'}
-                    className={passportData.passport.complianceStatus === 'compliant' ? 'bg-emerald-500' : ''}
+                    className={passportData.passport.complianceStatus === 'compliant' ? 'bg-emerald-600 text-white capitalize' : 'capitalize'}
                   >
                     {passportData.passport.complianceStatus}
                   </Badge>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Trust score</span>
+                  <span className="font-medium">{passportData.passport.trustScore}/100</span>
+                </div>
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href="/passport">Open passport</Link>
+                </Button>
               </div>
             ) : (
               <div className="text-center py-4">
-                <p className="text-muted-foreground mb-4">No passport found</p>
+                <p className="text-muted-foreground mb-4">No passport yet</p>
                 <Button asChild>
-                  <Link href="/passport">Generate Passport</Link>
+                  <Link href="/passport">Generate passport</Link>
                 </Button>
               </div>
             )}
@@ -178,8 +174,8 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {marketData?.leaderboard?.slice(0, 5).map((company: any, index: number) => (
-                <div key={index} className="flex items-center justify-between">
+              {marketData?.leaderboard?.slice(0, 5).map((company: { name: string; volume: number }, index: number) => (
+                <div key={company.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
                       {index + 1}
@@ -187,7 +183,7 @@ export function DashboardContent({ userId, userRole }: DashboardContentProps) {
                     <span className="text-sm font-medium truncate max-w-32">{company.name}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    ${company.volume.toLocaleString()}
+                    {formatUsd(company.volume)}
                   </span>
                 </div>
               ))}

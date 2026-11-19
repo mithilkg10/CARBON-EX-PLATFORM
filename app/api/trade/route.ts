@@ -1,185 +1,166 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { db, generateId } from '@/lib/db'
-import { EscrowLedger } from '@/lib/security-layer/ledger/escrow'
+import { executeSTAVP } from '@/lib/ledger/stavp'
+import type { CarbonCredit } from '@/lib/db/types'
 
-// GET: Fetch available credits for trading
-export async function GET() {
-  try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const availableCredits = await db.getAvailableCredits()
-    
-    // Exclude user's own credits from buy list
-    const creditsForSale = availableCredits.filter(c => c.owner_id !== session.userId)
-    
-    // Get user's own credits for selling
-    const userCredits = await db.getCreditsByOwnerId(session.userId)
-    const sellableCredits = userCredits.filter(c => c.status === 'available')
-
-    return NextResponse.json({
-      forPurchase: creditsForSale.map(c => ({
-        id: c.id,
-        type: c.credit_type,
-        vintageYear: c.vintage_year,
-        quantity: c.quantity,
-        pricePerUnit: c.price_per_unit,
-        expiryDate: c.expiry_date,
-        certificationBody: c.certification_body,
-      })),
-      forSale: sellableCredits.map(c => ({
-        id: c.id,
-        type: c.credit_type,
-        vintageYear: c.vintage_year,
-        quantity: c.quantity,
-        pricePerUnit: c.price_per_unit,
-        expiryDate: c.expiry_date,
-        certificationBody: c.certification_body,
-      })),
-    })
-  } catch (error) {
-    console.error('Trade GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch credits' },
-      { status: 500 }
-    )
+function serializeCredit(c: CarbonCredit) {
+  return {
+    id: c.id,
+    type: c.credit_type,
+    vintageYear: c.vintage_year,
+    quantity: c.quantity,
+    pricePerUnit: c.price_per_unit,
+    expiryDate: c.expiry_date,
+    certificationBody: c.certification_body,
+    listed: c.listed,
   }
 }
 
-// POST: Execute a trade
+// GET: listings to buy, the caller's own holdings and the wallet balance
+export async function GET() {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const available = await db.getAvailableCredits()
+    const forPurchase = available.filter(c => c.listed && c.owner_id !== session.userId)
+    const owned = (await db.getCreditsByOwnerId(session.userId)).filter(c => c.status === 'available')
+    const user = await db.getUserById(session.userId)
+
+    return NextResponse.json({
+      forPurchase: forPurchase.map(serializeCredit),
+      forSale: owned.map(serializeCredit),
+      holdings: owned.reduce((sum, c) => sum + c.quantity, 0),
+      wallet: { balance: user?.wallet_balance ?? 0 },
+      isDemo: session.isDemo === true,
+    })
+  } catch (error) {
+    console.error('Trade GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch credits' }, { status: 500 })
+  }
+}
+
+// POST: buy (runs STAVP) or list / withdraw a holding
 export async function POST(request: Request) {
   try {
     const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (session.role !== 'company') {
+      return NextResponse.json({ error: 'Only company accounts can trade credits' }, { status: 403 })
     }
 
-    if (session.isDemo || session.role !== 'company') {
-      return NextResponse.json({ error: 'Trading is unavailable to demo and non-company accounts' }, { status: 403 })
-    }
+    const simulate = session.isDemo === true
+    const body = await request.json()
+    const { creditId, action, integrityHash } = body
+    const quantity = Number(body.quantity)
+    const walletBalance = Number.isFinite(Number(body.walletBalance)) ? Number(body.walletBalance) : undefined
 
-    const { creditId, quantity, action } = await request.json()
-
-    if (!creditId || !quantity || !action) {
-      return NextResponse.json(
-        { error: 'creditId, quantity, and action are required' },
-        { status: 400 }
-      )
-    }
-
-    if (!['buy', 'sell'].includes(action)) {
-      return NextResponse.json(
-        { error: 'Action must be "buy" or "sell"' },
-        { status: 400 }
-      )
+    if (!creditId || !action) {
+      return NextResponse.json({ error: 'creditId and action are required' }, { status: 400 })
     }
 
     const credit = await db.getCreditById(creditId)
-    if (!credit) {
-      return NextResponse.json(
-        { error: 'Credit not found' },
-        { status: 404 }
-      )
-    }
+    if (!credit) return NextResponse.json({ error: 'Credit not found' }, { status: 404 })
 
     if (action === 'buy') {
-      // User is buying, so credit owner is the seller
       if (credit.owner_id === session.userId) {
-        return NextResponse.json(
-          { error: 'Cannot buy your own credits' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'You cannot buy your own credits' }, { status: 400 })
+      }
+      const user = await db.getUserById(session.userId)
+      // The demo wallet lives in the visitor's browser session, so the client sends its balance.
+      const balance = simulate && walletBalance !== undefined ? walletBalance : user?.wallet_balance ?? 0
+      const cost = Math.round(quantity * credit.price_per_unit * 100) / 100
+      if (cost > balance) {
+        return NextResponse.json({ error: `Insufficient wallet balance: this purchase costs $${cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}` }, { status: 400 })
       }
 
-      // Execute STL-C³T Escrow Commit
-      const escrow = EscrowLedger.getInstance()
-      const ledgerEntry = escrow.commitTransaction({
+      const result = await executeSTAVP({
         buyerId: session.userId,
         sellerId: credit.owner_id,
         creditId,
         quantity,
         pricePerUnit: credit.price_per_unit,
-        timestamp: Date.now()
-      })
+        integrityHash,
+      }, { simulate })
 
-      // Update DB Trade Record using the generated ledger hash
-      const tradeId = `trd_${generateId()}`
-      const totalPrice = quantity * credit.price_per_unit
-      
-      await db.addTrade({
-        id: tradeId,
-        buyer_id: session.userId,
-        seller_id: credit.owner_id,
-        credit_id: creditId,
-        quantity,
-        price_per_unit: credit.price_per_unit,
-        total_price: totalPrice,
-        trade_type: 'buy',
-        status: 'completed',
-        ledger_hash: ledgerEntry.hash,
-        created_at: new Date().toISOString(),
-      })
-
-      // Add audit log
-      await db.addAuditLog({
-        id: `aud_${generateId()}`,
-        user_id: session.userId,
-        action: 'trade_buy',
-        resource_type: 'trade',
-        resource_id: tradeId,
-        details: JSON.stringify({
-          creditId,
-          quantity,
-          totalPrice: totalPrice,
-          stlHash: ledgerEntry.hash
-        }),
-        created_at: new Date().toISOString(),
-      })
-
-      return NextResponse.json({
-        success: true,
-        trade: { id: tradeId, total_price: totalPrice },
-        verificationHash: ledgerEntry.hash,
-        message: `Successfully purchased ${quantity} carbon credits for $${totalPrice} (Secured via STL-C³T)`,
-      })
-    } else {
-      // User is selling (listing for sale)
-      if (credit.owner_id !== session.userId) {
-        return NextResponse.json(
-          { error: 'You do not own this credit' },
-          { status: 403 }
-        )
+      if (!result.success || !result.trade || !result.ledgerEntry) {
+        return NextResponse.json({ error: result.error || 'Trade failed' }, { status: 400 })
       }
 
-      // For demo, just mark as available with updated price
-      // In production, would create a listing
+      if (!simulate) {
+        await db.updateUser(session.userId, { wallet_balance: Math.round((balance - cost) * 100) / 100 })
+        const seller = await db.getUserById(credit.owner_id)
+        if (seller) await db.updateUser(seller.id, { wallet_balance: Math.round(((seller.wallet_balance ?? 0) + cost) * 100) / 100 })
+        await db.addAuditLog({
+          id: `aud_${generateId()}`,
+          user_id: session.userId,
+          action: 'trade_buy',
+          resource_type: 'trade',
+          resource_id: result.trade.id,
+          details: JSON.stringify({ creditId, quantity, totalPrice: cost, ledgerHash: result.ledgerEntry.transaction_hash }),
+          created_at: new Date().toISOString(),
+        })
+      }
 
-      await db.addAuditLog({
-        id: `aud_${generateId()}`,
-        user_id: session.userId,
-        action: 'trade_list',
-        resource_type: 'credit',
-        resource_id: creditId,
-        details: JSON.stringify({
-          quantity,
-          pricePerUnit: credit.price_per_unit,
-        }),
-        created_at: new Date().toISOString(),
-      })
-
+      const seller = await db.getUserById(credit.owner_id)
       return NextResponse.json({
         success: true,
-        message: `Listed ${quantity} credits for sale at $${credit.price_per_unit} per unit`,
+        simulated: simulate,
+        trade: {
+          id: result.trade.id,
+          buyerName: session.name,
+          sellerName: seller?.name || 'Counterparty',
+          quantity,
+          pricePerUnit: credit.price_per_unit,
+          totalPrice: cost,
+          status: 'completed',
+          ledgerHash: result.ledgerEntry.transaction_hash,
+          createdAt: result.trade.created_at,
+          isUserBuyer: true,
+          isUserSeller: false,
+        },
+        credit: result.buyerCredit ? serializeCredit(result.buyerCredit) : null,
+        ledger: {
+          hash: result.ledgerEntry.transaction_hash,
+          previousHash: result.ledgerEntry.previous_hash,
+          nonce: result.ledgerEntry.nonce,
+        },
+        message: `Purchased ${quantity} ${credit.credit_type} credits for $${cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       })
     }
+
+    if (action === 'list' || action === 'withdraw') {
+      if (credit.owner_id !== session.userId) {
+        return NextResponse.json({ error: 'You do not own this credit' }, { status: 403 })
+      }
+      const listed = action === 'list'
+      if (!simulate) {
+        await db.updateCredit(creditId, { listed })
+        await db.addAuditLog({
+          id: `aud_${generateId()}`,
+          user_id: session.userId,
+          action: listed ? 'credit_listed' : 'listing_withdrawn',
+          resource_type: 'credit',
+          resource_id: creditId,
+          details: JSON.stringify({ quantity: credit.quantity, pricePerUnit: credit.price_per_unit }),
+          created_at: new Date().toISOString(),
+        })
+      }
+      return NextResponse.json({
+        success: true,
+        simulated: simulate,
+        creditId,
+        listed,
+        message: listed
+          ? `Listed ${credit.quantity.toLocaleString()} ${credit.credit_type} credits at $${credit.price_per_unit.toFixed(2)} each`
+          : `Withdrew the ${credit.credit_type} listing from the market`,
+      })
+    }
+
+    return NextResponse.json({ error: 'Action must be buy, list or withdraw' }, { status: 400 })
   } catch (error) {
     console.error('Trade POST error:', error)
-    return NextResponse.json(
-      { error: 'Trade execution failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Trade execution failed' }, { status: 500 })
   }
 }

@@ -1,7 +1,9 @@
-// STAVP - Secure Trade Authorization & Verification Protocol
-// Implements cryptographic hash chaining for immutable transaction logging
+// STAVP: Secure Trade Authorization & Verification Protocol
+// Validates a trade, locks the credit, chains a SHA-256 ledger entry to the previous
+// one, settles ownership and records the trade. In simulate mode (recruiter demo) every
+// check and hash is computed exactly the same way but nothing shared is written.
 
-import { db, generateId } from '@/lib/db'
+import { db, generateId, sha256Hex } from '@/lib/db'
 import type { Trade, LedgerEntry, CarbonCredit } from '@/lib/db/types'
 
 export interface STAVPTransaction {
@@ -10,176 +12,109 @@ export interface STAVPTransaction {
   creditId: string
   quantity: number
   pricePerUnit: number
+  integrityHash?: string
 }
 
 export interface STAVPResult {
   success: boolean
+  simulated?: boolean
   trade?: Trade
   ledgerEntry?: LedgerEntry
+  buyerCredit?: CarbonCredit
   error?: string
   verificationHash?: string
 }
 
-// Generate SHA-256 hash using Web Crypto API
-async function sha256(message: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(message)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// Generate cryptographic nonce
 function generateNonce(): string {
   const array = new Uint8Array(16)
   crypto.getRandomValues(array)
   return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// STAVP Protocol Implementation
-export async function executeSTAVP(transaction: STAVPTransaction): Promise<STAVPResult> {
-  const { buyerId, sellerId, creditId, quantity, pricePerUnit } = transaction
+export async function executeSTAVP(transaction: STAVPTransaction, options: { simulate?: boolean } = {}): Promise<STAVPResult> {
+  const { buyerId, sellerId, creditId, quantity, pricePerUnit, integrityHash } = transaction
+  const simulate = options.simulate === true
+
+  const credit = await db.getCreditById(creditId)
+  if (!credit) return { success: false, error: 'Credit not found' }
+  if (credit.owner_id !== sellerId) return { success: false, error: 'Seller does not own this credit' }
+  if (credit.status !== 'available' || !credit.listed) return { success: false, error: 'This credit is no longer listed for sale' }
+  if (!Number.isInteger(quantity) || quantity <= 0) return { success: false, error: 'Quantity must be a whole number above zero' }
+  if (credit.quantity < quantity) return { success: false, error: `Only ${credit.quantity} credits are available in this listing` }
+
+  const pending = (await db.getAllTrades()).some(t => t.credit_id === creditId && t.status === 'pending')
+  if (pending) return { success: false, error: 'Credit is locked in a pending transaction' }
+
+  if (!simulate) await db.updateCredit(creditId, { status: 'locked' })
 
   try {
-    // Step 1: Generate nonce for this transaction
     const nonce = generateNonce()
-
-    // Step 2: Validate credit ownership and availability
-    const credit = await db.getCreditById(creditId)
-    if (!credit) {
-      return { success: false, error: 'Credit not found' }
-    }
-
-    if (credit.owner_id !== sellerId) {
-      return { success: false, error: 'Seller does not own this credit' }
-    }
-
-    if (credit.status !== 'available') {
-      return { success: false, error: 'Credit is not available for trading' }
-    }
-
-    if (credit.quantity < quantity) {
-      return { success: false, error: 'Insufficient credit quantity' }
-    }
-
-    // Step 3: Check for double-spend (credit must not be locked in another pending transaction)
-    const pendingTrades = (await db.getAllTrades()).filter(
-      t => t.credit_id === creditId && t.status === 'pending'
-    )
-    if (pendingTrades.length > 0) {
-      return { success: false, error: 'Credit is locked in a pending transaction' }
-    }
-
-    // Step 4: Lock the credit
-    await db.updateCredit(creditId, { status: 'locked' })
-
-    // Step 5: Create transaction hash
-    const transactionData = {
-      buyerId,
-      sellerId,
-      creditId,
-      quantity,
-      pricePerUnit,
-      nonce,
-      timestamp: Date.now(),
-    }
-    const transactionString = JSON.stringify(transactionData)
-
-    // Step 6: Get previous hash from ledger
+    const now = new Date().toISOString()
+    const tradeId = `trd_${generateId()}`
+    const transactionString = JSON.stringify({ tradeId, buyerId, sellerId, creditId, quantity, pricePerUnit, nonce, integrityHash: integrityHash ?? null, timestamp: now })
     const lastEntry = await db.getLastLedgerEntry()
     const previousHash = lastEntry?.transaction_hash || '0'.repeat(64)
+    const transactionHash = sha256Hex(`${previousHash}|${transactionString}`)
 
-    // Step 7: Generate chained hash (includes previous hash for immutability)
-    const chainedData = `${previousHash}|${transactionString}`
-    const transactionHash = await sha256(chainedData)
-
-    // Step 8: Create trade record
-    const totalPrice = parseFloat((quantity * pricePerUnit).toFixed(2))
     const trade: Trade = {
-      id: `trd_${generateId()}`,
+      id: tradeId,
       buyer_id: buyerId,
       seller_id: sellerId,
       credit_id: creditId,
       quantity,
       price_per_unit: pricePerUnit,
-      total_price: totalPrice,
+      total_price: Math.round(quantity * pricePerUnit * 100) / 100,
       trade_type: 'buy',
       status: 'completed',
       ledger_hash: transactionHash,
-      created_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      created_at: now,
+      completed_at: now,
     }
 
-    // Step 9: Create ledger entry
     const ledgerEntry: LedgerEntry = {
       id: `led_${generateId()}`,
-      trade_id: trade.id,
+      trade_id: tradeId,
       transaction_hash: transactionHash,
       previous_hash: previousHash,
       nonce,
       action: 'trade',
       data: transactionString,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
       verified: true,
     }
 
-    // Step 10: Atomic execution - update all records
-    await db.addTrade(trade)
-    await db.addLedgerEntry(ledgerEntry)
+    const buyerCredit: CarbonCredit = {
+      id: quantity === credit.quantity ? credit.id : `crd_${generateId()}`,
+      owner_id: buyerId,
+      credit_type: credit.credit_type,
+      vintage_year: credit.vintage_year,
+      quantity,
+      price_per_unit: pricePerUnit,
+      expiry_date: credit.expiry_date,
+      status: 'available',
+      listed: false,
+      certification_body: credit.certification_body,
+      created_at: now,
+    }
 
-    // Update credit - split if partial, transfer ownership
-    if (quantity === credit.quantity) {
-      // Full transfer
-      await db.updateCredit(creditId, {
-        owner_id: buyerId,
-        status: 'available',
-      })
-    } else {
-      // Partial transfer - create new credit for buyer
-      const remainingQuantity = credit.quantity - quantity
-      await db.updateCredit(creditId, {
-        quantity: remainingQuantity,
-        status: 'available',
-      })
-
-      // Create new credit for transferred portion
-      const newCredit: CarbonCredit = {
-        id: `crd_${generateId()}`,
-        owner_id: buyerId,
-        credit_type: credit.credit_type,
-        vintage_year: credit.vintage_year,
-        quantity,
-        price_per_unit: pricePerUnit,
-        expiry_date: credit.expiry_date,
-        status: 'available',
-        certification_body: credit.certification_body,
-        created_at: new Date().toISOString(),
+    if (!simulate) {
+      await db.addTrade(trade)
+      await db.addLedgerEntry(ledgerEntry)
+      if (quantity === credit.quantity) {
+        await db.updateCredit(creditId, { owner_id: buyerId, status: 'available', listed: false, price_per_unit: pricePerUnit })
+      } else {
+        await db.updateCredit(creditId, { quantity: credit.quantity - quantity, status: 'available' })
+        await db.addCredit(buyerCredit)
       }
-      // Note: In production, would add this to credits collection
     }
 
-    return {
-      success: true,
-      trade,
-      ledgerEntry,
-      verificationHash: transactionHash,
-    }
+    return { success: true, simulated: simulate, trade, ledgerEntry, buyerCredit, verificationHash: transactionHash }
   } catch (error) {
-    // Rollback: unlock credit if error occurred
-    try {
-      await db.updateCredit(creditId, { status: 'available' })
-    } catch {
-      // Ignore rollback errors
-    }
-
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Transaction failed',
-    }
+    if (!simulate) await db.updateCredit(creditId, { status: 'available' })
+    return { success: false, error: error instanceof Error ? error.message : 'Transaction failed' }
   }
 }
 
-// Verify transaction integrity
 export async function verifyTransaction(transactionHash: string): Promise<{
   valid: boolean
   entry?: LedgerEntry
@@ -187,20 +122,12 @@ export async function verifyTransaction(transactionHash: string): Promise<{
   message: string
 }> {
   const ledger = await db.getLedger()
-  const entry = ledger.find(e => e.transaction_hash === transactionHash)
-
-  if (!entry) {
-    return {
-      valid: false,
-      chainIntact: false,
-      message: 'Transaction not found in ledger',
-    }
+  const entryIndex = ledger.findIndex(e => e.transaction_hash === transactionHash)
+  if (entryIndex === -1) {
+    return { valid: false, chainIntact: false, message: 'Transaction not found in ledger' }
   }
+  const entry = ledger[entryIndex]
 
-  // Find this entry's position in the chain
-  const entryIndex = ledger.indexOf(entry)
-
-  // Verify chain integrity up to this point
   let chainIntact = true
   for (let i = 1; i <= entryIndex; i++) {
     if (ledger[i].previous_hash !== ledger[i - 1].transaction_hash) {
@@ -209,11 +136,8 @@ export async function verifyTransaction(transactionHash: string): Promise<{
     }
   }
 
-  // Verify the hash itself
   const previousHash = entryIndex > 0 ? ledger[entryIndex - 1].transaction_hash : '0'.repeat(64)
-  const chainedData = `${previousHash}|${entry.data}`
-  const computedHash = await sha256(chainedData)
-  const hashValid = computedHash === entry.transaction_hash
+  const hashValid = sha256Hex(`${previousHash}|${entry.data}`) === entry.transaction_hash
 
   return {
     valid: hashValid && chainIntact,
@@ -227,7 +151,6 @@ export async function verifyTransaction(transactionHash: string): Promise<{
   }
 }
 
-// Get ledger statistics
 export async function getLedgerStats(): Promise<{
   totalTransactions: number
   totalVolume: number
@@ -236,15 +159,12 @@ export async function getLedgerStats(): Promise<{
 }> {
   const ledger = await db.getLedger()
   const trades = await db.getAllTrades()
+  const totalVolume = trades.filter(t => t.status === 'completed').reduce((sum, t) => sum + t.total_price, 0)
 
-  const totalVolume = trades
-    .filter(t => t.status === 'completed')
-    .reduce((sum, t) => sum + t.total_price, 0)
-
-  // Verify full chain integrity
   let chainIntegrity = true
-  for (let i = 1; i < ledger.length; i++) {
-    if (ledger[i].previous_hash !== ledger[i - 1].transaction_hash) {
+  for (let i = 0; i < ledger.length; i++) {
+    const previousHash = i > 0 ? ledger[i - 1].transaction_hash : '0'.repeat(64)
+    if (ledger[i].previous_hash !== previousHash || sha256Hex(`${previousHash}|${ledger[i].data}`) !== ledger[i].transaction_hash) {
       chainIntegrity = false
       break
     }
@@ -252,7 +172,7 @@ export async function getLedgerStats(): Promise<{
 
   return {
     totalTransactions: ledger.length,
-    totalVolume: parseFloat(totalVolume.toFixed(2)),
+    totalVolume: Math.round(totalVolume * 100) / 100,
     chainIntegrity,
     lastVerifiedAt: new Date().toISOString(),
   }

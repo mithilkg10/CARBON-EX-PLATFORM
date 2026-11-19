@@ -48,6 +48,10 @@ function jitter(base: number, maxDelta: number, lo: number, hi: number) {
   return clamp(base + (Math.random() - 0.5) * 2 * maxDelta, lo, hi)
 }
 
+function daysAgo(n: number) {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MetricInfo {
@@ -374,18 +378,18 @@ function MetricCard({ metric, prevValue, index }: MetricCardProps) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function AIAnalytics() {
+export function AIAnalytics({ flaggedCount = 0, openReviews = 0 }: { flaggedCount?: number; openReviews?: number }) {
   const [metrics, setMetrics] = useState<ModelMetric[]>(INITIAL_METRICS)
   const [prevMetrics, setPrevMetrics] = useState<ModelMetric[]>(INITIAL_METRICS)
   const [history, setHistory] = useState<TimePoint[]>(buildHistory)
   const [radarData, setRadarData] = useState<RadarPoint[]>([])
   const [tick, setTick] = useState(0)
-  const [modelStatus, setModelStatus] = useState<"optimal" | "degraded" | "warning">("optimal")
+  const modelStatus: "optimal" | "degraded" | "warning" = flaggedCount >= 6 ? "warning" : "optimal"
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // derived additional stats
   const [extraStats, setExtraStats] = useState({
-    anomaliesDetected: 1847,
+    anomaliesDetected: 0,
     modelsRunning: 4,
     dataPointsProcessed: 2_410_334,
     avgConfidence: 98.2,
@@ -429,24 +433,21 @@ export function AIAnalytics() {
         return next
       })
       setExtraStats((prev) => ({
-        anomaliesDetected: prev.anomaliesDetected + Math.floor(Math.random() * 3),
+        anomaliesDetected: prev.anomaliesDetected,
         modelsRunning: 4,
         dataPointsProcessed: prev.dataPointsProcessed + Math.floor(Math.random() * 800 + 200),
         avgConfidence: jitter(98.2, 0.3, 97, 99.5),
       }))
       setTick((t) => t + 1)
 
-      // Randomly flip status for realism
-      const r = Math.random()
-      setModelStatus(r > 0.92 ? "warning" : r > 0.97 ? "degraded" : "optimal")
     }, 3000)
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [metrics])
 
   const statusConfig = {
-    optimal: { label: "Optimal", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-    warning: { label: "Warning", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+    optimal: { label: "Optimal", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
+    warning: { label: "Elevated", color: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
     degraded: { label: "Degraded", color: "bg-red-500/20 text-red-400 border-red-500/30" },
   }
 
@@ -459,9 +460,9 @@ export function AIAnalytics() {
             <Brain className="h-6 w-6 text-violet-400" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight">AI Analytics</h2>
+            <h2 className="text-xl font-bold tracking-tight">AI analytics</h2>
             <p className="text-xs text-muted-foreground">
-              Real-time model performance · computed from live transaction data
+              Simulated model telemetry · open anomalies come from the live flags and review queue
             </p>
           </div>
         </div>
@@ -480,7 +481,7 @@ export function AIAnalytics() {
       {/* Quick-stat ribbon */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Anomalies Detected", value: extraStats.anomaliesDetected.toLocaleString(), color: "#ef4444", icon: AlertOctagon },
+          { label: "Open anomalies", value: String(flaggedCount + openReviews), color: "#ef4444", icon: AlertOctagon },
           { label: "Models Running", value: String(extraStats.modelsRunning), color: "#6366f1", icon: Brain },
           { label: "Data Points (total)", value: (extraStats.dataPointsProcessed / 1_000_000).toFixed(2) + "M", color: "#14b8a6", icon: Cpu },
           { label: "Avg Confidence", value: extraStats.avgConfidence.toFixed(1) + "%", color: "#10b981", icon: TrendingUp },
@@ -549,11 +550,11 @@ export function AIAnalytics() {
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} interval={4} />
-                <YAxis domain={[88, 100]} stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="time" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} interval={4} />
+                <YAxis domain={[88, 100]} tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
+                  contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: 12 }}
                   formatter={(v: any) => [`${Number(v).toFixed(2)}%`]}
                 />
                 <Area type="monotone" dataKey="accuracy" stroke="#10b981" fill="url(#acc)" strokeWidth={2} dot={false} name="Accuracy" />
@@ -591,11 +592,11 @@ export function AIAnalytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={230}>
               <RadarChart data={radarData} outerRadius={80}>
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                <PolarGrid stroke="var(--color-border)" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} />
                 <Radar name="AI Model" dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
+                  contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: 12 }}
                   formatter={(v: any) => [`${Number(v).toFixed(1)}%`]}
                 />
               </RadarChart>
@@ -612,7 +613,7 @@ export function AIAnalytics() {
             version: "v3.2.1",
             type: "Gradient Boosting + LSTM",
             status: "Active",
-            trained: "2024-12-01",
+            trained: daysAgo(18),
             dataset: "4.2M records",
             color: "#10b981",
           },
@@ -621,7 +622,7 @@ export function AIAnalytics() {
             version: "v2.5.0",
             type: "Transformer (time-series)",
             status: "Active",
-            trained: "2024-11-15",
+            trained: daysAgo(34),
             dataset: "2.8M records",
             color: "#6366f1",
           },
@@ -630,7 +631,7 @@ export function AIAnalytics() {
             version: "v1.9.3",
             type: "XGBoost Ensemble",
             status: "Active",
-            trained: "2024-10-30",
+            trained: daysAgo(51),
             dataset: "1.5M records",
             color: "#f59e0b",
           },
@@ -641,7 +642,7 @@ export function AIAnalytics() {
               <CardHeader className="pb-2 pt-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-sm">{model.title}</CardTitle>
-                  <Badge className="text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{model.status}</Badge>
+                  <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">{model.status}</Badge>
                 </div>
                 <CardDescription className="text-[11px]">{model.type}</CardDescription>
               </CardHeader>

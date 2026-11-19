@@ -13,7 +13,7 @@ import { ArrowUpRight, ArrowDownRight, BarChart3 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { DataPoint, Timeframe } from "@/lib/utils/market-data"
+import type { DataPoint, Timeframe } from "@/lib/market/engine"
 
 interface MarketChartsProps {
   data: DataPoint[]
@@ -32,15 +32,17 @@ export const formatXAxis = (dateStr: string, timeframe: Timeframe) => {
 }
 
 const chartCardClass =
-  "h-full overflow-hidden border-white/[0.07] bg-gradient-to-br from-white/[0.045] via-white/[0.025] to-emerald-400/[0.025] shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl"
+  "h-full overflow-hidden bg-card/80 shadow-sm backdrop-blur-xl dark:border-white/[0.07] dark:bg-gradient-to-br dark:from-white/[0.045] dark:via-white/[0.025] dark:to-emerald-400/[0.025] dark:shadow-[0_18px_60px_rgba(0,0,0,0.22)]"
 
-const tooltipStyle = {
-  backgroundColor: "rgba(6, 13, 11, 0.96)",
-  border: "1px solid rgba(110, 231, 183, 0.16)",
+export const tooltipStyle = {
+  backgroundColor: "var(--color-popover)",
+  border: "1px solid var(--color-border)",
   borderRadius: "12px",
-  color: "#f8fafc",
-  boxShadow: "0 18px 50px rgba(0,0,0,.35)",
+  color: "var(--color-popover-foreground)",
+  boxShadow: "0 18px 50px rgba(0,0,0,.18)",
 }
+
+const axisTick = { fill: "var(--color-muted-foreground)", fontSize: 11 }
 
 export function CarbonPriceChart({ data, timeframe, currentPrice, priceChange, onTimeframeChange }: MarketChartsProps) {
   return (
@@ -50,19 +52,19 @@ export function CarbonPriceChart({ data, timeframe, currentPrice, priceChange, o
           <div>
             <CardTitle className="text-lg">Carbon Credit Price</CardTitle>
             <CardDescription>
-              {timeframe === "1D" ? "24-hour" : timeframe === "1W" ? "7-day" : timeframe.toLowerCase()} price history
+              {timeframe === "1D" ? "24 hour" : timeframe === "1W" ? "7 day" : timeframe === "15D" ? "15 day" : "30 day"} price history
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge
               variant={priceChange >= 0 ? "default" : "destructive"}
-              className={priceChange >= 0 ? "border border-emerald-300/10 bg-emerald-300/10 text-emerald-300" : ""}
+              className={priceChange >= 0 ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : ""}
             >
               {priceChange >= 0 ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <ArrowDownRight className="mr-1 h-3 w-3" />}
               {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
             </Badge>
             <Select value={timeframe} onValueChange={(val) => onTimeframeChange(val as Timeframe)}>
-              <SelectTrigger className="h-8 w-[82px] border-white/10 bg-black/20 text-xs">
+              <SelectTrigger className="h-8 w-[82px] text-xs" aria-label="Timeframe">
                 <SelectValue placeholder="Time" />
               </SelectTrigger>
               <SelectContent>
@@ -85,18 +87,18 @@ export function CarbonPriceChart({ data, timeframe, currentPrice, priceChange, o
                   <stop offset="95%" stopColor="#34d399" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="rgba(255,255,255,.06)" strokeDasharray="4 4" vertical={false} />
+              <CartesianGrid stroke="var(--color-border)" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) => formatXAxis(value, timeframe)}
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={axisTick}
                 minTickGap={22}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={axisTick}
                 tickFormatter={(value) => `$${value}`}
                 axisLine={false}
                 tickLine={false}
@@ -136,13 +138,13 @@ export function TradingVolumeChart({ data, timeframe, onTimeframeChange }: Omit<
           <div>
             <CardTitle className="text-lg">Trading Volume</CardTitle>
             <CardDescription>
-              {timeframe === "1D" ? "24-hour" : timeframe === "1W" ? "7-day" : timeframe.toLowerCase()} trading activity
+              {timeframe === "1D" ? "Hourly" : "Daily"} market volume (USD)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-cyan-300/70" />
+            <BarChart3 className="h-5 w-5 text-cyan-600 dark:text-cyan-300/70" />
             <Select value={timeframe} onValueChange={(val) => onTimeframeChange(val as Timeframe)}>
-              <SelectTrigger className="h-8 w-[82px] border-white/10 bg-black/20 text-xs">
+              <SelectTrigger className="h-8 w-[82px] text-xs" aria-label="Timeframe">
                 <SelectValue placeholder="Time" />
               </SelectTrigger>
               <SelectContent>
@@ -165,17 +167,17 @@ export function TradingVolumeChart({ data, timeframe, onTimeframeChange }: Omit<
                   <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="rgba(255,255,255,.06)" strokeDasharray="4 4" vertical={false} />
+              <CartesianGrid stroke="var(--color-border)" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) => formatXAxis(value, timeframe)}
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={axisTick}
                 minTickGap={22}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "#64748b", fontSize: 11 }}
+                tick={axisTick}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                 axisLine={false}
                 tickLine={false}
@@ -184,7 +186,7 @@ export function TradingVolumeChart({ data, timeframe, onTimeframeChange }: Omit<
                 contentStyle={tooltipStyle}
                 cursor={{ stroke: "rgba(34,211,238,.20)", strokeWidth: 1 }}
                 labelFormatter={(value) => new Date(value).toLocaleString()}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, "Volume"]}
+                formatter={(value: number) => [`$${Math.round(value).toLocaleString()}`, "Volume"]}
               />
               <Area
                 key={timeframe}

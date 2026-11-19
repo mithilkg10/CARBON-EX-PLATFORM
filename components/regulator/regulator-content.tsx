@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
 import useSWR from "swr"
@@ -15,364 +16,228 @@ import {
   Ban,
   Eye,
   MoreHorizontal,
-  Search,
   Filter,
-  Download,
-  RefreshCw,
+  Brain,
+  RotateCcw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { AIAnalytics } from "@/components/regulator/ai-analytics"
+import { tooltipStyle } from "@/components/dashboard/market-charts"
+import { useSandbox, updateSandbox, recordAction } from "@/lib/demo/sandbox"
+import { formatUsd } from "@/lib/market/engine"
+import type { FlaggedEntity, ReviewItem, RegistrationRequest } from "@/lib/db/types"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`)
+  return res.json()
 }
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
+const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }
+const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }
+
+interface StatsApi {
+  complianceByIndustry: Array<{ industry: string; compliant: number; nonCompliant: number; entities: number }>
+  alertDistribution: Array<{ name: string; value: number; color: string }>
+  marketHealth: { liquidity: number; stability: number; fraudDetection: number; labels: { liquidity: string; stability: string; fraudDetection: string } }
+  stats: { totalEntities: string; pendingReviews: string; complianceRate: string; activeAlerts: string }
 }
 
-// Mock data for regulator view
-const complianceByIndustry = [
-  { industry: "Energy", compliant: 85, nonCompliant: 15 },
-  { industry: "Manufacturing", compliant: 72, nonCompliant: 28 },
-  { industry: "Transport", compliant: 68, nonCompliant: 32 },
-  { industry: "Agriculture", compliant: 91, nonCompliant: 9 },
-  { industry: "Mining", compliant: 65, nonCompliant: 35 },
-]
-
-const alertDistribution = [
-  { name: "Critical", value: 12, color: "#ef4444" },
-  { name: "Warning", value: 34, color: "#f59e0b" },
-  { name: "Info", value: 156, color: "#3b82f6" },
-]
-
-const initialPendingReviews = [
-  { id: "REV-001", company: "EcoSteel Industries", type: "Emission Report", submitted: "2024-01-15", status: "pending", risk: "high" },
-  { id: "REV-002", company: "GreenTech Solutions", type: "Credit Transfer", submitted: "2024-01-14", status: "pending", risk: "low" },
-  { id: "REV-003", company: "Carbon Neutral Corp", type: "Offset Verification", submitted: "2024-01-13", status: "in-review", risk: "medium" },
-  { id: "REV-004", company: "SustainaPower Ltd", type: "Compliance Audit", submitted: "2024-01-12", status: "pending", risk: "low" },
-  { id: "REV-005", company: "BlueOcean Shipping", type: "Emission Report", submitted: "2024-01-11", status: "in-review", risk: "high" },
-  { id: "REV-006", company: "AeroDynamics Inc", type: "Credit Transfer", submitted: "2024-01-10", status: "pending", risk: "medium" },
-  { id: "REV-007", company: "SolarFlare Energy", type: "Offset Verification", submitted: "2024-01-09", status: "pending", risk: "low" },
-  { id: "REV-008", company: "Global Logistics", type: "Compliance Audit", submitted: "2024-01-08", status: "in-review", risk: "high" },
-  { id: "REV-009", company: "AgriGrow Co", type: "Emission Report", submitted: "2024-01-07", status: "pending", risk: "low" },
-  { id: "REV-010", company: "NextGen Motors", type: "Credit Transfer", submitted: "2024-01-06", status: "in-review", risk: "medium" },
-  { id: "REV-011", company: "WindForce Power", type: "Offset Verification", submitted: "2024-01-05", status: "pending", risk: "low" },
-  { id: "REV-012", company: "PetroChem Dynamics", type: "Compliance Audit", submitted: "2024-01-04", status: "pending", risk: "high" },
-  { id: "REV-013", company: "Urban Constructors", type: "Emission Report", submitted: "2024-01-03", status: "in-review", risk: "medium" },
-  { id: "REV-014", company: "TechNova Cloud", type: "Credit Transfer", submitted: "2024-01-02", status: "pending", risk: "low" },
-  { id: "REV-015", company: "DeepSea Mining", type: "Compliance Audit", submitted: "2024-01-01", status: "pending", risk: "high" },
-]
-
-const initialFlaggedEntities = [
-  { id: "FL-001", company: "DarkCarbon Inc", reason: "Suspicious trading patterns", severity: "critical", flaggedAt: "2024-01-15" },
-  { id: "FL-002", company: "GrayZone Manufacturing", reason: "Incomplete emission reports", severity: "warning", flaggedAt: "2024-01-14" },
-  { id: "FL-003", company: "QuestionMark Energy", reason: "Trust score below threshold", severity: "warning", flaggedAt: "2024-01-13" },
-  { id: "FL-004", company: "Shadow Logistics", reason: "Unverified credit sources", severity: "critical", flaggedAt: "2024-01-12" },
-  { id: "FL-005", company: "Obscure Holdings", reason: "Sudden spike in transfers", severity: "warning", flaggedAt: "2024-01-11" },
-  { id: "FL-006", company: "Phantom Exports", reason: "Mismatched ledger records", severity: "critical", flaggedAt: "2024-01-10" },
-  { id: "FL-007", company: "Dusk Mining", reason: "Overdue compliance audit", severity: "warning", flaggedAt: "2024-01-09" },
-  { id: "FL-008", company: "Mirage Energy", reason: "Multiple rejected reports", severity: "critical", flaggedAt: "2024-01-08" },
-]
+async function postJson(url: string, body: unknown) {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || "Action failed")
+  return data
+}
 
 export function RegulatorContent() {
-  // Use SWR with refreshInterval to continuously poll for new dynamic data
-  const { data: regulatorData } = useSWR("/api/regulator/stats", fetcher, { refreshInterval: 5000 })
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedIndustry, setSelectedIndustry] = useState("all")
-  const [blockedEntities, setBlockedEntities] = useState<string[]>([])
-  
-  const [pendingReviews, setPendingReviews] = useState(initialPendingReviews)
-  const [flaggedEntities, setFlaggedEntities] = useState(initialFlaggedEntities)
+  const { data: statsData, mutate: mutateStats } = useSWR<StatsApi>("/api/regulator/stats", fetcher, { refreshInterval: 30000 })
+  const { data: queueData, mutate: mutateQueues } = useSWR<{ reviews: ReviewItem[]; flagged: FlaggedEntity[] }>("/api/regulator/reviews", fetcher)
+  const { data: registrationData, mutate: mutateRegistrations } = useSWR<{ requests: RegistrationRequest[] }>("/api/admin/registrations", fetcher)
+  const sandbox = useSandbox()
 
-  const { data: registrationData, mutate: mutateRegistrations } = useSWR("/api/admin/registrations", fetcher, { refreshInterval: 5000 })
-  const registrationRequests = registrationData?.requests || []
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [busy, setBusy] = useState<string | null>(null)
+  const [investigating, setInvestigating] = useState<FlaggedEntity | null>(null)
+  const [activeTab, setActiveTab] = useState("overview")
 
-  const handleRegistrationAction = async (id: string, actionName: 'accepted' | 'rejected') => {
+  const reviews = useMemo(() => (queueData?.reviews ?? []).map(r => (sandbox.reviews[r.id] ? { ...r, status: sandbox.reviews[r.id] } : r)), [queueData, sandbox.reviews])
+  const flagged = useMemo(() => (queueData?.flagged ?? []).map(f => (f.id in sandbox.suspended ? { ...f, suspended: sandbox.suspended[f.id] } : f)), [queueData, sandbox.suspended])
+  const registrations = useMemo(() => (registrationData?.requests ?? []).map(r => (sandbox.registrations[r.id] ? { ...r, status: sandbox.registrations[r.id] } : r)), [registrationData, sandbox.registrations])
+
+  const openReviews = reviews.filter(r => r.status === "pending" || r.status === "in-review")
+  const visibleReviews = reviews.filter(r => typeFilter === "all" || r.type === typeFilter)
+
+  // Sandbox decisions shift the headline numbers the same way a real decision would.
+  const stats = useMemo(() => {
+    if (!statsData) return null
+    const sandboxClosed = Object.keys(sandbox.reviews).length
+    const sandboxSuspended = Object.values(sandbox.suspended).filter(Boolean).length
+    const critical = flagged.filter(f => !f.suspended && f.severity === "critical").length + openReviews.filter(r => r.risk === "high").length
+    const warning = flagged.filter(f => !f.suspended && f.severity === "warning").length + openReviews.filter(r => r.risk === "medium").length
+    const info = openReviews.filter(r => r.risk === "low").length
+    return {
+      ...statsData,
+      alertDistribution: [
+        { name: "Critical", value: critical, color: "#ef4444" },
+        { name: "Warning", value: warning, color: "#f59e0b" },
+        { name: "Info", value: info, color: "#3b82f6" },
+      ],
+      stats: {
+        ...statsData.stats,
+        pendingReviews: String(openReviews.length),
+        activeAlerts: String(critical + warning + info),
+      },
+      changed: sandboxClosed + sandboxSuspended > 0,
+    }
+  }, [statsData, sandbox.reviews, sandbox.suspended, flagged, openReviews])
+
+  async function decideReview(review: ReviewItem, decision: "approved" | "rejected") {
+    setBusy(review.id)
     try {
-      await fetch('/api/admin/registrations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: actionName })
-      })
-      mutateRegistrations()
-      toast.success(`Registration ${actionName}`, {
-        description: `The request has been ${actionName}.`,
-      })
+      const data = await postJson("/api/regulator/reviews", { id: review.id, decision })
+      if (data.simulated) {
+        updateSandbox(s => ({ ...s, reviews: { ...s.reviews, [review.id]: decision } }))
+        recordAction({ action: decision === "approved" ? "REVIEW_APPROVED" : "REVIEW_REJECTED", entityType: "review", entityId: review.id, details: { company: review.company, type: review.type } })
+      } else {
+        await Promise.all([mutateQueues(), mutateStats()])
+      }
+      toast.success(data.message)
     } catch (e) {
-      toast.error('Action failed')
+      toast.error(e instanceof Error ? e.message : "Action failed")
+    } finally {
+      setBusy(null)
     }
   }
 
-  const handleAction = (id: string, actionName: string, company: string) => {
-    setPendingReviews(prev => prev.filter(review => review.id !== id))
-    toast.success(`Review ${actionName}`, {
-      description: `Action applied to ${company}'s submission.`,
-    })
-  }
-
-  const handleInvestigate = (companyName: string) => {
-    toast("Investigation started from now", {
-      description: `Reviewing activity for ${companyName}`,
-    })
-  }
-
-  const handleToggleBlock = async (id: string, companyName: string) => {
-    const isBlocked = blockedEntities.includes(id)
-    
-    // Optimistic UI update
-    if (isBlocked) {
-      setBlockedEntities(prev => prev.filter(e => e !== id))
-      toast("User Unblocked", { description: `${companyName} can now access the platform.` })
-    } else {
-      setBlockedEntities(prev => [...prev, id])
-      toast.error("Taken out from platform", { description: `${companyName} has been put in the blocklist.` })
-    }
-
+  async function toggleSuspend(entity: FlaggedEntity) {
+    const suspend = !entity.suspended
+    setBusy(entity.id)
     try {
-      await fetch("/api/regulator/block", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: isBlocked ? 'unblock' : 'block' })
-      })
+      const data = await postJson("/api/regulator/block", { id: entity.id, action: suspend ? "block" : "unblock" })
+      if (data.simulated) {
+        updateSandbox(s => ({ ...s, suspended: { ...s.suspended, [entity.id]: suspend } }))
+        recordAction({ action: suspend ? "ENTITY_SUSPENDED" : "ENTITY_REINSTATED", entityType: "entity", entityId: entity.id, details: { company: entity.company, reason: entity.reason } })
+      } else {
+        await Promise.all([mutateQueues(), mutateStats()])
+      }
+      if (suspend) toast.warning(data.message)
+      else toast.success(data.message)
+      setInvestigating(cur => (cur && cur.id === entity.id ? { ...cur, suspended: suspend } : cur))
     } catch (e) {
-      console.error("Failed to block user", e)
+      toast.error(e instanceof Error ? e.message : "Action failed")
+    } finally {
+      setBusy(null)
     }
   }
 
-  // Bind dynamic data or fallback to mock data while loading
-  const dynamicComplianceByIndustry = regulatorData?.complianceByIndustry || complianceByIndustry
-  const dynamicAlertDistribution = regulatorData?.alertDistribution || alertDistribution
-  const dynamicStats = regulatorData?.stats || {
-    totalEntities: "2,847",
-    pendingReviews: "47",
-    complianceRate: "78.3%",
-    activeAlerts: "12"
-  }
-  const dynamicMarketHealth = regulatorData?.marketHealth || {
-    liquidity: 85,
-    stability: 62,
-    fraudDetection: 94
-  }
-
-  const getRiskBadge = (risk: string) => {
-    switch (risk) {
-      case "high":
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">High Risk</Badge>
-      case "medium":
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Medium</Badge>
-      default:
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Low Risk</Badge>
+  async function decideRegistration(req: RegistrationRequest, action: "accepted" | "rejected") {
+    setBusy(req.id)
+    try {
+      const data = await postJson("/api/admin/registrations", { id: req.id, action })
+      if (data.simulated) {
+        updateSandbox(s => ({ ...s, registrations: { ...s.registrations, [req.id]: action } }))
+        recordAction({ action: action === "accepted" ? "REGISTRATION_ACCEPTED" : "REGISTRATION_REJECTED", entityType: "registration", entityId: req.id, details: { company: req.company_name } })
+      } else {
+        await mutateRegistrations()
+      }
+      toast.success(data.message)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Action failed")
+    } finally {
+      setBusy(null)
     }
   }
 
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case "critical":
-        return <Badge variant="destructive">Critical</Badge>
-      case "warning":
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Warning</Badge>
-      default:
-        return <Badge variant="secondary">Info</Badge>
-    }
-  }
+  const riskBadge = (risk: string) =>
+    risk === "high" ? <Badge className="border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400">High risk</Badge>
+      : risk === "medium" ? <Badge className="border-yellow-500/30 bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">Medium</Badge>
+        : <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">Low risk</Badge>
 
-  const getStatusBadge = (status: string) => {
+  const statusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return (
-          <Badge variant="outline" className="border-yellow-500/30 text-yellow-400">
-            <Clock className="mr-1 h-3 w-3" /> Pending
-          </Badge>
-        )
+        return <Badge variant="outline" className="border-yellow-500/40 text-yellow-700 dark:text-yellow-400"><Clock className="mr-1 h-3 w-3" />Pending</Badge>
       case "in-review":
-        return (
-          <Badge variant="outline" className="border-blue-500/30 text-blue-400">
-            <Eye className="mr-1 h-3 w-3" /> In Review
-          </Badge>
-        )
+        return <Badge variant="outline" className="border-blue-500/40 text-blue-700 dark:text-blue-400"><Eye className="mr-1 h-3 w-3" />In review</Badge>
       case "approved":
-        return (
-          <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">
-            <CheckCircle className="mr-1 h-3 w-3" /> Approved
-          </Badge>
-        )
+      case "accepted":
+        return <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 capitalize dark:text-emerald-400"><CheckCircle className="mr-1 h-3 w-3" />{status}</Badge>
+      case "rejected":
+        return <Badge variant="outline" className="border-red-500/40 text-red-700 dark:text-red-400"><Ban className="mr-1 h-3 w-3" />Rejected</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
   }
 
+  const health = stats?.marketHealth
+
   return (
-    <motion.div
-      className="space-y-6 p-0 sm:p-3"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Regulator Dashboard</h1>
-          <p className="text-muted-foreground">Market oversight and compliance monitoring</p>
-        </div>
-
-      </motion.div>
-
-      {/* Stats Overview */}
+    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          title="Total Entities"
-          value={dynamicStats.totalEntities}
-          change={12.5}
-          icon={Building2}
-        />
-        <StatsCard
-          title="Pending Reviews"
-          value={dynamicStats.pendingReviews}
-          change={-8.2}
-          icon={Clock}
-        />
-        <StatsCard
-          title="Compliance Rate"
-          value={dynamicStats.complianceRate}
-          change={2.1}
-          icon={CheckCircle}
-        />
-        <StatsCard
-          title="Active Alerts"
-          value={dynamicStats.activeAlerts}
-          change={3}
-          icon={AlertTriangle}
-          className="border-red-500/20"
-        />
+        <StatsCard title="Registered entities" value={stats?.stats.totalEntities ?? "..."} changeLabel="across 6 sectors" icon={Building2} />
+        <StatsCard title="Open reviews" value={stats?.stats.pendingReviews ?? "..."} changeLabel="pending or in review" icon={Clock} />
+        <StatsCard title="Compliance rate" value={stats?.stats.complianceRate ?? "..."} changeLabel="registered entities" icon={CheckCircle} />
+        <StatsCard title="Active alerts" value={stats?.stats.activeAlerts ?? "..."} changeLabel="flags and open review risk" icon={AlertTriangle} className="border-red-500/20" />
       </motion.div>
 
-      {/* Main Content Tabs */}
       <motion.div variants={itemVariants}>
-        <Tabs defaultValue="overview">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="reviews">Pending Reviews</TabsTrigger>
-            <TabsTrigger value="alerts">Alerts & Flags</TabsTrigger>
-            <TabsTrigger value="registrations">Registration Requests</TabsTrigger>
-            <TabsTrigger value="ai-analytics">🤖 AI Analytics</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews ({openReviews.length})</TabsTrigger>
+            <TabsTrigger value="alerts">Alerts and flags</TabsTrigger>
+            <TabsTrigger value="registrations">Registrations ({registrations.filter(r => r.status === "pending").length})</TabsTrigger>
+            <TabsTrigger value="ai-analytics" className="gap-1.5"><Brain className="h-4 w-4" />AI analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6 space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Compliance by Industry */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-emerald-400" />
-                    Compliance by Industry
-                  </CardTitle>
-                  <CardDescription>Industry-wide compliance rates</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />Compliance by industry</CardTitle>
+                  <CardDescription>Share of registered entities that are compliant</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={dynamicComplianceByIndustry} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" domain={[0, 100]} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis type="category" dataKey="industry" stroke="hsl(var(--muted-foreground))" width={100} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                        }}
-                      />
-                      <Bar dataKey="compliant" stackId="a" fill="#10b981" name="Compliant %" />
-                      <Bar dataKey="nonCompliant" stackId="a" fill="#ef4444" name="Non-Compliant %" />
+                    <BarChart data={stats?.complianceByIndustry ?? []} layout="vertical" margin={{ left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} unit="%" />
+                      <YAxis type="category" dataKey="industry" tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} width={100} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} formatter={(v: number, n: string) => [`${v}%`, n]} />
+                      <Bar dataKey="compliant" stackId="a" fill="#10b981" name="Compliant" />
+                      <Bar dataKey="nonCompliant" stackId="a" fill="#ef4444" name="Non compliant" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
 
-              {/* Alert Distribution */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                    Alert Distribution
-                  </CardTitle>
-                  <CardDescription>Active alerts by severity</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />Alert distribution</CardTitle>
+                  <CardDescription>Open alerts by severity, from flags and review risk</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie
-                          data={dynamicAlertDistribution}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {dynamicAlertDistribution.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="mt-4 flex justify-center gap-6">
-                    {dynamicAlertDistribution.map((item: any) => (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie data={stats?.alertDistribution ?? []} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" nameKey="name">
+                        {(stats?.alertDistribution ?? []).map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 flex flex-wrap justify-center gap-6">
+                    {(stats?.alertDistribution ?? []).map((item) => (
                       <div key={item.name} className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
                         <span className="text-sm">{item.name}: {item.value}</span>
@@ -383,37 +248,26 @@ export function RegulatorContent() {
               </Card>
             </div>
 
-            {/* Market Health Indicators */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-emerald-400" />
-                  Market Health Indicators
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />Market health</CardTitle>
+                <CardDescription>Liquidity and stability from the live market series; fraud detection from open flags</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Market Liquidity</span>
-                      <span className="text-emerald-400">High</span>
+                  {health && ([
+                    ["Market liquidity", health.liquidity, health.labels.liquidity],
+                    ["Price stability", health.stability, health.labels.stability],
+                    ["Fraud detection", health.fraudDetection, health.labels.fraudDetection],
+                  ] as const).map(([label, value, text]) => (
+                    <div key={label} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{label}</span>
+                        <span className={text === "Low" ? "text-red-600 dark:text-red-400" : text === "Moderate" ? "text-yellow-700 dark:text-yellow-400" : "text-emerald-700 dark:text-emerald-400"}>{text} · {value}</span>
+                      </div>
+                      <Progress value={value} className="h-2" aria-label={label} />
                     </div>
-                    <Progress value={dynamicMarketHealth.liquidity} className="h-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Price Stability</span>
-                      <span className="text-yellow-400">Moderate</span>
-                    </div>
-                    <Progress value={dynamicMarketHealth.stability} className="h-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Fraud Detection</span>
-                      <span className="text-emerald-400">Optimal</span>
-                    </div>
-                    <Progress value={dynamicMarketHealth.fraudDetection} className="h-2" />
-                  </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -424,23 +278,22 @@ export function RegulatorContent() {
               <CardHeader>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <CardTitle>Pending Reviews</CardTitle>
-                    <CardDescription>Items requiring regulatory approval</CardDescription>
+                    <CardTitle>Review queue</CardTitle>
+                    <CardDescription>Submissions waiting for a regulatory decision</CardDescription>
                   </div>
-                  <div className="flex gap-2">
-                    <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                      <SelectTrigger className="w-[150px]">
-                        <Filter className="mr-2 h-4 w-4" />
-                        <SelectValue placeholder="Filter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="emission">Emission Report</SelectItem>
-                        <SelectItem value="transfer">Credit Transfer</SelectItem>
-                        <SelectItem value="offset">Offset Verification</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-[190px]" aria-label="Filter by type">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="Emission Report">Emission report</SelectItem>
+                      <SelectItem value="Credit Transfer">Credit transfer</SelectItem>
+                      <SelectItem value="Offset Verification">Offset verification</SelectItem>
+                      <SelectItem value="Compliance Audit">Compliance audit</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardHeader>
               <CardContent>
@@ -457,33 +310,43 @@ export function RegulatorContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pendingReviews.map((review) => (
-                      <TableRow key={review.id}>
-                        <TableCell className="font-mono text-sm">{review.id}</TableCell>
-                        <TableCell className="font-medium">{review.company}</TableCell>
-                        <TableCell>{review.type}</TableCell>
-                        <TableCell>{review.submitted}</TableCell>
-                        <TableCell>{getRiskBadge(review.risk)}</TableCell>
-                        <TableCell>{getStatusBadge(review.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleAction(review.id, "Approved", review.company)}>
-                                <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" /> Approve
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleAction(review.id, "Rejected", review.company)}>
-                                <Ban className="mr-2 h-4 w-4" /> Reject
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {visibleReviews.map((review) => {
+                      const open = review.status === "pending" || review.status === "in-review"
+                      return (
+                        <TableRow key={review.id}>
+                          <TableCell className="font-mono text-sm">{review.id}</TableCell>
+                          <TableCell className="font-medium">{review.company}</TableCell>
+                          <TableCell>{review.type}</TableCell>
+                          <TableCell>{review.submitted}</TableCell>
+                          <TableCell>{riskBadge(review.risk)}</TableCell>
+                          <TableCell>{statusBadge(review.status)}</TableCell>
+                          <TableCell className="text-right">
+                            {open ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" disabled={busy === review.id} aria-label={`Actions for ${review.id}`}>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => decideReview(review, "approved")}>
+                                    <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Approve
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => decideReview(review, "rejected")}>
+                                    <Ban className="mr-2 h-4 w-4" /> Reject
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Closed</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                    {visibleReviews.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">No items of this type.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -493,51 +356,34 @@ export function RegulatorContent() {
           <TabsContent value="alerts" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-400" />
-                  Flagged Entities
-                </CardTitle>
-                <CardDescription>Entities requiring immediate attention</CardDescription>
+                <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />Flagged entities</CardTitle>
+                <CardDescription>Entities the monitoring rules have flagged for attention</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {flaggedEntities.map((entity) => (
-                    <div
-                      key={entity.id}
-                      className="flex items-center justify-between rounded-lg border border-border/50 bg-card/50 p-4"
-                    >
+                  {flagged.map((entity) => (
+                    <div key={entity.id} className="flex flex-col gap-4 rounded-lg border border-border/60 bg-card/50 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                          entity.severity === "critical" ? "bg-red-500/20" : "bg-yellow-500/20"
-                        }`}>
-                          <AlertTriangle className={`h-5 w-5 ${
-                            entity.severity === "critical" ? "text-red-400" : "text-yellow-400"
-                          }`} />
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${entity.severity === "critical" ? "bg-red-500/15" : "bg-yellow-500/15"}`}>
+                          <AlertTriangle className={`h-5 w-5 ${entity.severity === "critical" ? "text-red-600 dark:text-red-400" : "text-yellow-600 dark:text-yellow-400"}`} />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium">{entity.company}</span>
-                            {getSeverityBadge(entity.severity)}
+                            {entity.severity === "critical" ? <Badge variant="destructive">Critical</Badge> : <Badge className="border-yellow-500/30 bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">Warning</Badge>}
+                            {entity.suspended && <Badge variant="outline" className="border-red-500/40 text-red-700 dark:text-red-400">Suspended</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground">{entity.reason}</p>
-                          <p className="text-xs text-muted-foreground">Flagged: {entity.flaggedAt}</p>
+                          <p className="text-xs text-muted-foreground">Flagged {entity.flaggedAt}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleInvestigate(entity.company)}
-                        >
+                      <div className="flex shrink-0 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setInvestigating(entity)}>
                           <FileSearch className="mr-2 h-4 w-4" /> Investigate
                         </Button>
-                        <Button 
-                          variant={blockedEntities.includes(entity.id) ? "outline" : "destructive"} 
-                          size="sm"
-                          onClick={() => handleToggleBlock(entity.id, entity.company)}
-                        >
-                          <Ban className="mr-2 h-4 w-4" /> 
-                          {blockedEntities.includes(entity.id) ? "Unblock" : "Suspend"}
+                        <Button variant={entity.suspended ? "outline" : "destructive"} size="sm" disabled={busy === entity.id} onClick={() => toggleSuspend(entity)}>
+                          {entity.suspended ? <RotateCcw className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
+                          {entity.suspended ? "Reinstate" : "Suspend"}
                         </Button>
                       </div>
                     </div>
@@ -550,50 +396,47 @@ export function RegulatorContent() {
           <TabsContent value="registrations" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-blue-400" />
-                  Registration Requests
-                </CardTitle>
-                <CardDescription>Approve or reject new organization access</CardDescription>
+                <CardTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />Registration requests</CardTitle>
+                <CardDescription>Approve or reject new organizations asking to join the exchange</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Company</TableHead>
-                      <TableHead>Contact Name</TableHead>
+                      <TableHead>Contact name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Requested</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registrationRequests.map((req: any) => (
+                    {registrations.map((req) => (
                       <TableRow key={req.id}>
                         <TableCell className="font-medium">{req.company_name}</TableCell>
                         <TableCell>{req.name}</TableCell>
                         <TableCell>{req.email}</TableCell>
-                        <TableCell>{getStatusBadge(req.status)}</TableCell>
+                        <TableCell>{new Date(req.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>{statusBadge(req.status)}</TableCell>
                         <TableCell className="text-right">
-                          {req.status === 'pending' && (
+                          {req.status === "pending" ? (
                             <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleRegistrationAction(req.id, 'accepted')}>
-                                <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" /> Accept
+                              <Button variant="outline" size="sm" disabled={busy === req.id} onClick={() => decideRegistration(req, "accepted")}>
+                                <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Accept
                               </Button>
-                              <Button variant="outline" size="sm" className="text-destructive border-destructive" onClick={() => handleRegistrationAction(req.id, 'rejected')}>
+                              <Button variant="outline" size="sm" disabled={busy === req.id} className="border-destructive text-destructive" onClick={() => decideRegistration(req, "rejected")}>
                                 <Ban className="mr-2 h-4 w-4" /> Reject
                               </Button>
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Decided</span>
                           )}
                         </TableCell>
                       </TableRow>
                     ))}
-                    {registrationRequests.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
-                          No pending registration requests.
-                        </TableCell>
-                      </TableRow>
+                    {registrations.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="py-4 text-center text-muted-foreground">No registration requests.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -602,10 +445,45 @@ export function RegulatorContent() {
           </TabsContent>
 
           <TabsContent value="ai-analytics" className="mt-6">
-            <AIAnalytics />
+            <AIAnalytics flaggedCount={flagged.filter(f => !f.suspended).length} openReviews={openReviews.length} />
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      <Dialog open={!!investigating} onOpenChange={(open) => !open && setInvestigating(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Investigation: {investigating?.company}</DialogTitle>
+            <DialogDescription>{investigating?.reason}</DialogDescription>
+          </DialogHeader>
+          {investigating && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Severity</p><p className="font-semibold capitalize">{investigating.severity}</p></div>
+                <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Trust score</p><p className="font-semibold">{investigating.trustScore}/100</p></div>
+                <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Trades, 30 days</p><p className="font-semibold">{investigating.tradesLast30d}</p></div>
+                <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Volume, 30 days</p><p className="font-semibold">{formatUsd(investigating.volumeLast30d)}</p></div>
+              </div>
+              <p className="text-muted-foreground">
+                Flagged on {investigating.flaggedAt}. Status: {investigating.suspended ? "suspended from trading" : "active, trading allowed"}.
+                The trust score threshold for automatic review is 40.
+              </p>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            {investigating && (
+              <Button asChild variant="outline">
+                <Link href={`/audit?q=${encodeURIComponent(investigating.company)}`}>Open audit trail</Link>
+              </Button>
+            )}
+            {investigating && (
+              <Button variant={investigating.suspended ? "outline" : "destructive"} disabled={busy === investigating.id} onClick={() => toggleSuspend(investigating)}>
+                {investigating.suspended ? "Reinstate" : "Suspend from trading"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

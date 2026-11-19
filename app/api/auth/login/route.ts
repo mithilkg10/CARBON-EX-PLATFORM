@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       role: user.role,
       name: user.name,
       companyName: user.company_name,
-      isDemo: user.is_demo === true,
+      isDemo: false,
     })
 
     // Set session cookie
